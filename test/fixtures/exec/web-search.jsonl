@@ -1,0 +1,9 @@
+{"type":"thread.started","thread_id":"01a0aa71-98a8-7051-84a6-bb2f37622b48"}
+{"type":"turn.started"}
+{"type":"item.completed","item":{"id":"item_0","type":"agent_message","text":"I’ll check BBC’s website for its current top headline.\n"}}
+{"type":"item.started","item":{"id":"item_1","type":"web_search","id":"exec-648abaf7-9bd7-454d-b3f3-29476d394b6a","query":"","action":{"type":"other"}}}
+{"type":"item.completed","item":{"id":"item_1","type":"web_search","id":"exec-648abaf7-9bd7-454d-b3f3-29476d394b6a","query":"https://www.bbc.com","action":{"type":"other"}}}
+{"type":"item.started","item":{"id":"item_2","type":"web_search","id":"exec-99842d28-8d8a-4e89-aa5c-f36e38ca92a5","query":"","action":{"type":"other"}}}
+{"type":"item.completed","item":{"id":"item_2","type":"web_search","id":"exec-99842d28-8d8a-4e89-aa5c-f36e38ca92a5","query":"site:bbc.com/news September 16 2026 BBC news","action":{"type":"search","query":"site:bbc.com/news September 16 2026 BBC news"}}}
+{"type":"item.completed","item":{"id":"item_3","type":"agent_message","text":"I searched, but BBC.com blocked access and the results didn’t verify today’s top headline. I can’t reliably quote it."}}
+{"type":"turn.completed","usage":{"input_tokens":45615,"cached_input_tokens":39040,"cache_write_input_tokens":0,"output_tokens":130,"reasoning_output_tokens":0}}

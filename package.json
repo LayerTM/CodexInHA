@@ -1,0 +1,26 @@
+{
+  "name": "codex-in-ha",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Home Assistant add-on that runs the Codex CLI",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/LayerTM/CodexInHA.git"
+  },
+  "engines": {
+    "node": ">=26"
+  },
+  "scripts": {
+    "test": "node --test \"test/**/*.test.js\"",
+    "lint": "eslint .",
+    "typecheck": "tsc -p jsconfig.json"
+  },
+  "devDependencies": {
+    "@eslint/js": "10.0.1",
+    "@types/node": "26.6.1",
+    "eslint": "10.10.0",
+    "globals": "17.12.0",
+    "typescript": "7.0.2"
+  }
+}
