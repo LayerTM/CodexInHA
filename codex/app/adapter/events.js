@@ -13,17 +13,15 @@
 // - any item that executes something other than an MCP tool (a command, a web
 //   search, a file change, or a type this decoder does not know) is a policy
 //   violation — the prompt profile must never produce one;
-// - an MCP call is attributed to the Home Assistant server only when the CLI
-//   names that server; a tool of the same name elsewhere is not ours.
+// - an MCP call counts only when the CLI names the Home Assistant server AND
+//   the tool is one the request allows. Anything else is a violation — that
+//   includes the CLI's own resource tools (list_mcp_resources,
+//   read_mcp_resource, …), which it reports under the server they read from
+//   and which reach the server outside the allowed tool list.
 //
 // The CLI reports no cost, no model and no turn count here: those stay null.
 
 const HA_SERVER = 'ha';
-
-// MCP tools the CLI itself provides for reading resources of configured
-// servers. They execute nothing and are not Home Assistant tool calls.
-const CLI_SERVER = 'codex';
-const CLI_BUILTIN_TOOLS = new Set(['list_mcp_resources', 'list_mcp_resource_templates', 'read_mcp_resource']);
 
 // Items that carry no action.
 const PASSIVE_ITEMS = new Set(['agent_message', 'reasoning']);
@@ -63,7 +61,16 @@ function errorText(err) {
   return typeof err === 'string' ? err : 'unknown error';
 }
 
-function createDecoder({ haServer = HA_SERVER } = {}) {
+/**
+ * @param {object} o
+ * @param {string[]} o.allowedTools  the exact tool names this request may call
+ * @param {string} [o.haServer]
+ */
+function createDecoder({ allowedTools, haServer = HA_SERVER }) {
+  if (!Array.isArray(allowedTools) || allowedTools.some((t) => typeof t !== 'string' || t === '')) {
+    throw new TypeError('decoder: allowedTools must list the allowed tool names');
+  }
+  const allowed = new Set(allowedTools);
   const state = {
     threadId: null,
     completed: false,
@@ -71,7 +78,7 @@ function createDecoder({ haServer = HA_SERVER } = {}) {
     finalText: null,
     usage: null,
     warnings: [],
-    toolCalls: new Map(), // item id -> { server, tool, ha, status, error }; built-in calls too, for identity checks
+    toolCalls: new Map(), // item id -> { server, tool, status, error }
   };
 
   function fail(reason, message) {
@@ -95,14 +102,13 @@ function createDecoder({ haServer = HA_SERVER } = {}) {
     }
     if (known && known.status !== 'started') return fail('protocol', `MCP call ${id} reported after it ended`);
     if (known && phase === 'start') return null; // progress of a started call
-    const builtin = server === CLI_SERVER && CLI_BUILTIN_TOOLS.has(tool);
-    if (!builtin && (server !== haServer || tool === '')) return violate(`MCP call ${server || '?'}/${tool || '?'}`);
-    const call = known || { server, tool, ha: !builtin, status: 'started', error: null };
+    if (server !== haServer || !allowed.has(tool)) return violate(`MCP call ${server || '?'}/${tool || '?'}`);
+    const call = known || { server, tool, status: 'started', error: null };
     state.toolCalls.set(id, call);
-    if (phase === 'start') return { kind: 'tool-start', id, server, tool, ha: call.ha, builtin };
+    if (phase === 'start') return { kind: 'tool-start', id, server, tool };
     call.status = it.status === 'completed' && !it.error ? 'completed' : 'failed';
     call.error = it.error ? errorText(it.error) : null;
-    return { kind: 'tool-result', id, server, tool, ha: call.ha, builtin, ok: call.status === 'completed', error: call.error };
+    return { kind: 'tool-result', id, server, tool, ok: call.status === 'completed', error: call.error };
   }
 
   function decodeItem(phase, it) {
@@ -180,7 +186,7 @@ function createDecoder({ haServer = HA_SERVER } = {}) {
    * @param {number|null} exitCode
    */
   function end(exitCode) {
-    const calls = [...state.toolCalls.values()].filter((c) => c.ha);
+    const calls = [...state.toolCalls.values()];
     const base = {
       threadId: state.threadId,
       text: state.finalText,

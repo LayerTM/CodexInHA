@@ -11,7 +11,9 @@ function fixture(name) {
   return fs.readFileSync(path.join(__dirname, 'fixtures', 'exec', `${name}.jsonl`), 'utf8').split('\n');
 }
 
-function decode(lines, exitCode = 0, opts) {
+const ALLOWED = ['ha_read', 'HassTurnOn', 'GetLiveContext'];
+
+function decode(lines, exitCode = 0, opts = { allowedTools: ALLOWED }) {
   const d = createDecoder(opts);
   const events = lines.flatMap((l) => d.line(typeof l === 'string' ? l : JSON.stringify(l)));
   return { events, outcome: d.end(exitCode) };
@@ -67,7 +69,7 @@ for (const [name, what] of [['command-execution', 'command_execution'], ['file-c
 }
 
 test('a refused tool call is reported as failed, not as used (recorded run)', () => {
-  const { outcome } = decode(fixture('mcp-call-refused'));
+  const { outcome } = decode(fixture('mcp-call-refused'), 0, { allowedTools: ['ha_write', 'ha_other', 'ha_read'] });
   assert.deepEqual(outcome.toolsUsed, ['ha_other', 'ha_read']);
   assert.equal(outcome.mcpFailed, true);
   assert.deepEqual(outcome.toolCalls[0], {
@@ -126,21 +128,47 @@ test('only the Home Assistant server counts as ours', () => {
   assert.equal(decoy.status, 'error');
   assert.equal(decoy.reason, 'policy');
   assert.deepEqual(decoy.toolsUsed, []);
-  const renamed = decode([...START, mcp('completed', 'i1', 'home', 'x'), FINAL, DONE], 0, { haServer: 'home' }).outcome;
+  const renamed = decode([...START, mcp('completed', 'i1', 'home', 'x'), FINAL, DONE], 0, { allowedTools: ['x'], haServer: 'home' }).outcome;
   assert.equal(renamed.status, 'ok');
   assert.deepEqual(renamed.toolsUsed, ['x']);
   assert.equal(decode([...START, mcp('completed', 'i1', 'ha', ''), FINAL, DONE]).outcome.reason, 'policy');
 });
 
-test('the CLI resource-listing tools are neither a violation nor a Home Assistant call', () => {
-  const { events, outcome } = decode([...START,
-    mcp('started', 'i1', 'codex', 'list_mcp_resources'), mcp('completed', 'i1', 'codex', 'list_mcp_resources'),
-    FINAL, DONE]);
-  assert.equal(outcome.status, 'ok');
-  assert.deepEqual(outcome.toolCalls, []);
-  assert.ok(events.every((e) => e.kind !== 'tool-result' || e.builtin === true));
-  const other = decode([...START, mcp('completed', 'i1', 'codex', 'shell'), FINAL, DONE]).outcome;
+test('only an allowed tool counts; any other tool on the server is a violation', () => {
+  const other = decode([...START, mcp('started', 'i1', 'ha', 'HassTurnOff'), mcp('completed', 'i1', 'ha', 'HassTurnOff'), FINAL, DONE]).outcome;
   assert.equal(other.reason, 'policy');
+  assert.deepEqual(other.toolsUsed, []);
+  for (const tool of ['list_mcp_resources', 'list_mcp_resource_templates', 'read_mcp_resource']) {
+    for (const server of ['ha', 'codex']) {
+      const r = decode([...START, mcp('completed', 'i1', server, tool), FINAL, DONE]).outcome;
+      assert.equal(r.reason, 'policy', `${server}/${tool}`);
+      assert.deepEqual(r.toolsUsed, []);
+    }
+  }
+  assert.equal(decode([...START, mcp('completed', 'i1', 'ha', 'ha_read'), FINAL, DONE], 0, { allowedTools: [] }).outcome.reason, 'policy');
+});
+
+test('a run that read a server resource fails even though the resource was served (recorded run)', () => {
+  const { outcome } = decode(fixture('read-resource-leak'));
+  assert.equal(outcome.status, 'error');
+  assert.equal(outcome.reason, 'policy');
+  assert.match(outcome.message, /ha\/list_mcp_resources/);
+});
+
+test('a refused resource listing is still a violation (recorded run)', () => {
+  const { outcome } = decode(fixture('read-resource-denied'));
+  assert.equal(outcome.reason, 'policy');
+  // Without the resource calls the same run is a clean success.
+  const lines = fixture('read-resource-denied').filter((l) => !/"tool":"list_mcp_resource/.test(l));
+  const clean = decode(lines).outcome;
+  assert.equal(clean.status, 'ok');
+  assert.deepEqual(clean.toolsUsed, ['ha_read']);
+});
+
+test('a decoder is never made without the allowed tool names', () => {
+  for (const opts of [undefined, {}, { allowedTools: 'ha_read' }, { allowedTools: [''] }, { allowedTools: [3] }]) {
+    assert.throws(() => createDecoder(/** @type {any} */ (opts)), /allowedTools/, JSON.stringify(opts));
+  }
 });
 
 test('an unknown item type is a violation; an unknown event type proves nothing', () => {
@@ -182,7 +210,7 @@ test('a call keeps its identity and ends once', () => {
   assert.equal(swapped.status, 'error');
   assert.equal(swapped.reason, 'protocol');
   assert.deepEqual(swapped.toolsUsed, []);
-  const otherServer = decode([...START, mcp('started', 'x', 'codex', 'list_mcp_resources'), mcp('completed', 'x', 'ha', 'HassTurnOn'), FINAL, DONE]).outcome;
+  const otherServer = decode([...START, mcp('started', 'x', 'ha', 'GetLiveContext'), mcp('completed', 'x', 'ha', 'HassTurnOn'), FINAL, DONE]).outcome;
   assert.equal(otherServer.reason, 'protocol');
   const failedThenOk = decode([...START, mcp('started', 'x', 'ha', 'HassTurnOn'),
     mcp('completed', 'x', 'ha', 'HassTurnOn', { status: 'failed', error: { message: 'denied' } }),
