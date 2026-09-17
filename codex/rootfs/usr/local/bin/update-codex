@@ -1,0 +1,33 @@
+#!/usr/bin/env bash
+# Update the Codex CLI in persistent storage. Usable from any shell tab and from
+# the web console's update button. Optional argument: a version to install
+# instead of the newest one (a rollback).
+set -o pipefail
+
+export CODEX_HOME=/data/codex
+export NPM_CONFIG_PREFIX=/data/npm
+export PATH="/data/npm/bin:${PATH}"
+
+target="${1:-}"
+
+version() { codex --version 2>/dev/null | awk '/^codex-cli /{print $2}'; }
+
+before=$(version)
+
+if [ -n "${target}" ]; then
+    npm install --global --no-audit --no-fund "@openai/codex@${target}"
+else
+    codex update
+fi
+status=$?
+
+after=$(version)
+
+echo ""
+if [ "${before}" = "${after}" ]; then
+    echo "Codex CLI: ${after:-unknown} (no change)"
+else
+    echo "Codex CLI: ${before:-unknown} -> ${after:-unknown}"
+    echo "Restart the Codex session (not the add-on) to run the new version."
+fi
+exit ${status}

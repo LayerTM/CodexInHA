@@ -1,0 +1,233 @@
+configuration:
+  api_key:
+    name: Klucz API OpenAI
+    description: >-
+      Twój klucz API OpenAI z platform.openai.com (zaczyna się od sk-).
+      Użyj go, jeśli płacisz za API bezpośrednio. Zostaw puste, jeśli masz
+      plan ChatGPT — wtedy zaloguj się interaktywnie poleceniem 'codex login'
+      w konsoli.
+  ha_token:
+    name: Token HA (Long-Lived Access Token)
+    description: >-
+      Długoterminowy token dostępu Home Assistant. Utwórz go w Home Assistant:
+      Profil → Bezpieczeństwo → Długoterminowe tokeny dostępu. Gdy ustawiony,
+      Codex może robić zrzuty pulpitów (ha-shot), korzystać z hass-cli i
+      narzędzi hass-mcp oraz łączyć się z Home Assistant przez WebSocket/REST
+      jako Ty. Przechowywany zaszyfrowany i zachowywany między aktualizacjami
+      dodatku. Zostaw puste, aby pominąć te funkcje.
+  bypass_permissions:
+    name: Pomijaj prośby o zatwierdzenie
+    description: >-
+      Gdy włączone, Codex NIE będzie prosić o potwierdzenie przed
+      uruchamianiem poleceń powłoki, edycją plików czy innymi działaniami.
+      Włącz tylko, jeśli w pełni ufasz decyzjom Codex.
+      Odpowiada fladze --dangerously-bypass-approvals-and-sandbox.
+  auto_update:
+    name: Automatyczna aktualizacja Codex
+    description: >-
+      Gdy włączone, Codex sprawdza i instaluje aktualizacje przy każdym
+      starcie dodatku. Wyłącz, jeśli chcesz przypiąć konkretną wersję.
+      Aktualizować ręcznie zawsze można poleceniem 'codex update' w terminalu.
+  model:
+    name: Nadpisanie modelu
+    description: >-
+      Nadpisz domyślny model Codex. Zostaw puste, aby użyć domyślnego modelu
+      Codex CLI.
+  custom_instructions:
+    name: Własne instrukcje
+    description: >-
+      Dodatkowe instrukcje dołączane do wbudowanego kontekstu Home Assistant
+      (AGENTS.md). Użyj, aby dodać swoje preferencje, standardy kodu lub
+      kontekst projektu.
+  environment_vars:
+    name: Dodatkowe zmienne środowiskowe
+    description: >-
+      Dodatkowe zmienne środowiskowe przekazywane do Codex.
+      Format: KEY=VALUE — jeden wpis na linię.
+      Przykład: MY_VAR=hello lub NODE_OPTIONS=--max-old-space-size=4096
+  init_commands:
+    name: Polecenia inicjalizacyjne
+    description: >-
+      Polecenia powłoki uruchamiane podczas startu dodatku przed uruchomieniem
+      Codex. Przydatne do instalowania dodatkowych narzędzi lub serwerów
+      MCP. Przykłady: 'npm install -g @openai/some-mcp-server'
+      lub 'apt-get install -y ffmpeg'
+  plugins:
+    name: Dodatkowe wtyczki
+    description: >-
+      Dodatkowe wtyczki Codex ponad wbudowany zestaw, jeden wpis. Instalowane
+      raz i zachowywane między aktualizacjami. Bazowy zestaw (skille HA itd.)
+      jest zawsze dołączony.
+  marketplaces:
+    name: Dodatkowe marketplace'y wtyczek
+    description: >-
+      Dodatkowe marketplace'y wtyczek do zarejestrowania, jeden na wpis — GitHub
+      'owner/repo', URL Git lub ścieżka. Potrzebne przed instalacją wtyczek z
+      marketplace'u, którego nie ma wśród wbudowanych.
+  skills_git:
+    name: Repozytorium Git własnych skilli
+    description: >-
+      Opcjonalne repozytorium Git z Twoimi własnymi skillami, synchronizowane do
+      ~/.codex/skills przy każdym starcie. Każdy folder najwyższego poziomu w
+      repo musi być jednym skillem z plikiem SKILL.md. Zostaw puste, aby pominąć.
+  extra_args:
+    name: Dodatkowe argumenty Codex
+    description: >-
+      Dodatkowe argumenty wiersza poleceń do domyślnego wywołania 'codex'.
+      Jeden argument na wpis (nie łącz kilku flag w jednej linii).
+      Przykłady: --resume, --model, gpt-5.1-codex, --verbose
+  launch_command:
+    name: Własne polecenie uruchamiające
+    description: >-
+      Pełne polecenie do uruchomienia zamiast domyślnego wywołania 'codex'.
+      Gdy ustawione, całkowicie zastępuje domyślne uruchamianie — bypass_permissions
+      i extra_args są ignorowane. Użyj do zaawansowanych scenariuszy, jak
+      opakowanie codex innym narzędziem lub uruchomienie innego binarium.
+      Przykład: codex --resume --dangerously-bypass-approvals-and-sandbox
+      Zostaw puste, aby zachować domyślne zachowanie uruchamiania.
+  upload_retention_days:
+    name: Przechowywanie przesłanych plików (dni)
+    description: >-
+      Pliki dołączone przez konsolę webową są przechowywane w /data/uploads.
+      Pliki starsze niż podana liczba dni są usuwane automatycznie.
+      Ustaw 0, aby przechowywać przesłane pliki na zawsze.
+  remote_control:
+    name: Zdalne sterowanie (dostęp mobilny Codex)
+    description: >-
+      Uruchamia dodatkową kartę, aby oficjalna aplikacja mobilna ChatGPT /
+      chatgpt.com mogła sterować sesją tej maszyny. Wymaga pełnego
+      interaktywnego logowania w terminalu ('codex login') — sam klucz API
+      nie wystarczy.
+  monitoring_interval_hours:
+    name: Proaktywne monitorowanie (godziny)
+    description: >-
+      Gdy większe niż 0, Codex okresowo (co N godzin) przegląda dziennik błędów
+      i konfigurację HA i wysyła powiadomienie tylko, jeśli znajdzie coś wartego
+      uwagi. Wymaga zalogowania Codex i zużywa limit planu przy każdym
+      sprawdzeniu. Ustaw 0, aby wyłączyć (domyślnie). Aby otrzymywać sprawdzenia
+      na telefon, ustaw też HA_NOTIFY_SERVICE w zmiennych środowiskowych.
+  daily_digest_time:
+    name: Godzina porannego podsumowania (HH:MM)
+    description: >-
+      Gdy ustawiono godzinę np. 08:00 (strefa czasowa dodatku), Codex raz dziennie
+      wysyła krótkie, przyjazne poranne podsumowanie — dzisiejsza pogoda plus
+      delikatne zwrócenie uwagi na to, co warte uwagi (światła zostawione na noc,
+      otwarte drzwi, niski poziom baterii). Wymaga zalogowania Codex i zużywa
+      trochę limitu planu raz dziennie. Zostaw puste, aby wyłączyć. Aby otrzymywać
+      na telefon, ustaw też HA_NOTIFY_SERVICE w zmiennych środowiskowych (inaczej
+      pojawi się w powiadomieniach HA).
+  proactive_alerts:
+    name: Alerty proaktywne (deterministyczne)
+    description: >-
+      Gdy włączone, lekka pętla w tle obserwuje stany Home Assistant i
+      powiadamia Cię w momencie, gdy coś wygląda źle — wyciek wody, drzwi lub
+      okno zostawione otwarte w nocy, niski poziom baterii albo temperatura poza
+      zakresem. Jest w pełni deterministyczna (stałe reguły, bez Codex i bez
+      zużycia limitu planu) i alarmuje tylko o NOWYM problemie, nie w każdym
+      cyklu. Domyślnie wyłączone. Aby dotrzeć na telefon, ustaw też
+      HA_NOTIFY_SERVICE w zmiennych środowiskowych.
+  proactive_alerts_interval_minutes:
+    name: Interwał sprawdzania alertów (minuty)
+    description: >-
+      Jak często pętla alertów proaktywnych sprawdza dom, w minutach
+      (domyślnie 15). Niższa wartość oznacza szybszą reakcję, ale częstsze
+      sprawdzenia.
+  alert_battery_below:
+    name: Próg niskiej baterii (%)
+    description: >-
+      Alarmuj, gdy dowolna encja baterii spadnie poniżej tego procentu
+      (domyślnie 15). Ustaw 0, aby wyłączyć alerty o niskiej baterii.
+  alert_water_leak:
+    name: Alerty o wycieku wody (krytyczne)
+    description: >-
+      Alarmuj, gdy czujnik wycieku/wilgoci się załączy. Traktowane jako
+      KRYTYCZNE i wysyłane zawsze — nawet w godzinach ciszy. Domyślnie włączone.
+  alert_open_at_night:
+    name: Alerty „otwarte w nocy"
+    description: >-
+      Alarmuj, gdy drzwi, okno lub garaż są otwarte w oknie nocnym poniżej.
+      Domyślnie włączone.
+  alert_night_start:
+    name: Początek okna nocnego (HH:MM)
+    description: >-
+      Początek okna nocnego używanego przez alerty „otwarte w nocy"
+      (domyślnie 23:00).
+  alert_night_end:
+    name: Koniec okna nocnego (HH:MM)
+    description: >-
+      Koniec okna nocnego używanego przez alerty „otwarte w nocy"
+      (domyślnie 06:00).
+  alert_temp_enabled:
+    name: Alerty temperatury
+    description: >-
+      Alarmuj, gdy czujnik temperatury pokaże poniżej dolnego lub powyżej
+      górnego zakresu poniżej. Domyślnie wyłączone, bo rozsądne zakresy różnią
+      się w zależności od czujnika.
+  alert_temp_low:
+    name: Dolna granica temperatury (°)
+    description: >-
+      Alarmuj, gdy włączony czujnik temperatury pokaże poniżej tej wartości
+      (domyślnie 5). Używane tylko, gdy alerty temperatury są włączone.
+  alert_temp_high:
+    name: Górna granica temperatury (°)
+    description: >-
+      Alarmuj, gdy włączony czujnik temperatury pokaże powyżej tej wartości
+      (domyślnie 45). Używane tylko, gdy alerty temperatury są włączone.
+  alert_quiet_hours:
+    name: Godziny ciszy alertów (HH:MM-HH:MM)
+    description: >-
+      W tym oknie alerty niekrytyczne (bateria, temperatura, otwarte w nocy) są
+      wstrzymywane; krytyczne alerty o wycieku wody są wysyłane zawsze. Format
+      np. 22:00-07:00. Zostaw puste, aby wyłączyć godziny ciszy (domyślnie).
+  prompt_api:
+    name: Prompt API (integracja AI Agent)
+    description: >-
+      Udostępnia bezpieczne prompt API na wewnętrznym porcie dla towarzyszącej
+      integracji Home Assistant — rozmowa z Codex przez Assist i sensor
+      stanu. Port jest dostępny tylko wewnątrz wewnętrznej sieci Home
+      Assistant, każde żądanie wymaga tokenu bearer, a każdy prompt działa w
+      odizolowanej sesji Codex tylko do odczytu. Wyłącz, jeśli nie używasz
+      integracji.
+  api_token:
+    name: Token Prompt API (opcjonalny)
+    description: >-
+      Token bearer, który towarzysząca integracja musi przedstawić prompt API.
+      Zostaw puste (zalecane): dodatek sam wygeneruje silny token i przekaże go
+      integracji przez Supervisor discovery — bez ręcznej konfiguracji. Ustaw
+      tylko, jeśli chcesz stały, znany token jako ręczną opcję zapasową.
+  prompt_ha_token:
+    name: Token HA dla Prompt API (opcjonalny, ograniczony użytkownik)
+    description: >-
+      Długoterminowy token dostępu Home Assistant używany WYŁĄCZNIE przez sesje
+      prompt API do odczytu stanu Home Assistant przez integrację Model Context
+      Protocol Server. Najlepsza praktyka: utwórz dedykowanego użytkownika Home
+      Assistant bez uprawnień administratora i wklej jego token tutaj. Zostaw
+      puste, aby użyć 'Token HA'. Tak czy inaczej Codex widzi tylko encje
+      udostępnione dla Assist.
+  chat_model:
+    name: Model czatu (integracja AI Agent)
+    description: >-
+      Opcjonalne nadpisanie modelu TYLKO dla czatu towarzyszącego (integracja
+      AI Agent), niezależnie od konsoli. Użyj szybszego, tańszego modelu dla
+      błyskawicznych, tanich odpowiedzi w Assist, podczas gdy konsola zachowuje
+      własny model. Zostaw puste, aby użyć „Nadpisania modelu" powyżej lub
+      domyślnego modelu Codex.
+  chat_model_voice:
+    name: Model głosowy (integracja AI Agent)
+    description: >-
+      Opcjonalny jeszcze szybszy model TYLKO dla mówionych (głosowych) tur Assist —
+      odpowiedzi głosowe są krótkie, więc niższe opóźnienie liczy się bardziej niż
+      moc. Zostaw puste, aby dla głosu też użyć „Modelu czatu" powyżej.
+  chat_model_write:
+    name: Model akcji (integracja AI Agent)
+    description: >-
+      Opcjonalny model do wykonania akcji, którą już potwierdziłeś w czacie. Ten
+      krok wywołuje tylko podaną akcję Home Assistant, więc zwykle wystarczy
+      szybszy, tańszy model. Zostaw puste, aby użyć „Modelu czatu" powyżej. Tura
+      głosowa zostaje przy „Modelu głosowym", jeśli jest ustawiony.
+  chat_model_camera:
+    name: Model kamer (integracja AI Agent)
+    description: >-
+      Opcjonalny model do pytań, na które odpowiedź pochodzi ze zdjęcia z kamery.
+      Zostaw puste, aby użyć „Modelu czatu" powyżej. Tura głosowa zostaje przy
+      „Modelu głosowym", jeśli jest ustawiony.

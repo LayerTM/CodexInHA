@@ -1,0 +1,75 @@
+#!/usr/bin/bashio
+# ==============================================================================
+# start-codex: runs inside the "codex" tmux window.
+# Launches the Codex CLI with the configured flags; on exit it shows a small
+# menu so the session survives (restart / shell / update) instead of dying.
+# Deliberately s6-independent (no with-contenv): it only needs
+# /data/options.json, so it works the same under s6, a tmux respawn, a shell tab
+# or a bare container.
+# ==============================================================================
+
+# shellcheck source=../lib/addon-config.sh
+source /usr/local/lib/addon-config.sh
+
+# The console's own home: the sign-in, the sessions and the user's instructions.
+export CODEX_HOME=/data/codex
+export NPM_CONFIG_PREFIX=/data/npm
+export PATH="/data/npm/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+
+# Working directory: the Home Assistant configuration when it is there, the
+# add-on's own storage otherwise.
+if [ -d /homeassistant ] && [ -w /homeassistant ]; then
+    cd /homeassistant
+else
+    cd /data/workdir
+fi
+
+build_default_args() {
+    codex_args=()
+    if bashio::config.true 'bypass_permissions'; then
+        codex_args+=(--dangerously-bypass-approvals-and-sandbox)
+    fi
+    local model
+    model=$(bashio::config 'model')
+    if bashio::var.has_value "${model}"; then
+        codex_args+=(--model "${model}")
+    fi
+    while IFS= read -r arg; do
+        [ -n "${arg}" ] && codex_args+=("${arg}")
+    done < <(config_list extra_args)
+}
+
+run_codex() {
+    local launch_command
+    launch_command=$(bashio::config 'launch_command')
+    if bashio::var.has_value "${launch_command}"; then
+        bash -c "${launch_command}"
+    else
+        local codex_args
+        build_default_args
+        codex "${codex_args[@]}"
+    fi
+}
+
+show_menu() {
+    local v
+    v=$(codex --version 2>/dev/null | awk '/^codex-cli /{print $2}')
+    echo ""
+    echo "Codex exited. [Codex CLI ${v:-unknown}]"
+    echo "  r) restart Codex           s) drop to shell"
+    echo "  u) update Codex, restart   c) resume the last session"
+    echo ""
+    read -r -n 1 -p "> " choice
+    echo ""
+    case "${choice}" in
+        s|S) bash ;;
+        u|U) update-codex && run_codex ;;
+        c|C) codex resume --last ;;
+        *)   : ;;
+    esac
+}
+
+while true; do
+    run_codex
+    show_menu
+done

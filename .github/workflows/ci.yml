@@ -10,33 +10,73 @@ permissions:
   contents: read
 
 jobs:
-  test:
-    name: Tests
+  # The tests run against the tree the image ships: this repository's files
+  # merged with the pinned ha-agent-core release, by the same script the image
+  # build uses. A test therefore sees the adapter exactly as the core loads it.
+  addon:
+    name: Add-on
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-node@v7
         with:
           node-version: "26"
+      - name: Assemble the add-on with its pinned core
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          .github/scripts/core_archive.sh "${RUNNER_TEMP}/core"
+          codex/core/assemble.sh "${RUNNER_TEMP}/core/core.tar" codex "${RUNNER_TEMP}/addon"
       - name: Install dependencies
-        run: npm ci
+        working-directory: ${{ runner.temp }}/addon/app
+        run: '"${RUNNER_TEMP}/addon/install-tools/npm-ci-checked.sh"'
       - name: Run tests
+        working-directory: ${{ runner.temp }}/addon/app
         run: npm test
-
-  lint-js:
-    name: JS lint & types
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v7
-      - uses: actions/setup-node@v7
-        with:
-          node-version: "26"
-      - name: Install dependencies
-        run: npm ci
       - name: Lint (eslint)
+        working-directory: ${{ runner.temp }}/addon/app
         run: npm run lint
       - name: Type-check (tsc --checkJs)
+        working-directory: ${{ runner.temp }}/addon/app
         run: npm run typecheck
+
+  addon-linter:
+    name: Add-on linter
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - name: Lint the add-on
+        uses: frenck/action-addon-linter@v2
+        with:
+          path: "./codex"
+
+  hadolint:
+    name: Dockerfile
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - name: Lint Dockerfile
+        uses: hadolint/hadolint-action@v3.5.0
+        with:
+          dockerfile: codex/Dockerfile
+          ignore: DL3003,DL3008,DL3013,DL3018,DL3059,SC2015
+
+  shellcheck:
+    name: Shell scripts
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - name: Install shellcheck
+        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends shellcheck
+      - name: Check the add-on's shell scripts
+        run: |
+          shellcheck --severity=warning \
+            codex/core/assemble.sh \
+            .github/scripts/core_archive.sh \
+            codex/rootfs/usr/local/lib/engine-hooks.sh \
+            codex/rootfs/usr/local/bin/agent-ask \
+            codex/rootfs/usr/local/bin/update-codex \
+            codex/rootfs/usr/local/bin/start-remote
 
   secret-scan:
     runs-on: ubuntu-latest
@@ -64,7 +104,7 @@ jobs:
         with:
           python-version: "3.14"
       - name: Self-test the scanner
-        working-directory: .github/scripts
         run: python test_hygiene_scan.py
+        working-directory: .github/scripts
       - name: Scan tracked files for traces of one machine
         run: python .github/scripts/hygiene_scan.py .

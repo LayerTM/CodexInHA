@@ -1,0 +1,144 @@
+name: "Codex"
+version: "0.1.0"
+slug: codex
+description: "Codex AI assistant embedded in Home Assistant — web console with tabs, clipboard, file attachments, browser testing, and a bundled HA skill pack"
+url: "https://github.com/LayerTM/CodexInHA"
+
+arch:
+  - aarch64
+  - amd64
+
+init: false
+timeout: 300
+# Self-healing uses the Docker HEALTHCHECK in the Dockerfile (the config-level
+# `watchdog:` key is obsolete). The Supervisor restarts the add-on when the
+# console's /api/health stops responding.
+
+ingress: true
+ingress_entry: /
+ingress_stream: true
+panel_icon: "mdi:console-line"
+panel_title: "Codex"
+
+hassio_api: true
+homeassistant_api: true
+# manager: needed so the agent can create safety backups (POST /backups) before
+# risky changes and manage add-ons via the Supervisor API.
+hassio_role: manager
+
+# Announces the prompt API (host/port/token) to the Supervisor so the
+# companion integration configures itself with zero user input.
+discovery:
+  - claude_ha
+
+map:
+  - type: homeassistant_config
+    read_only: false
+  - type: addon_config
+    read_only: false
+  - type: share
+    read_only: false
+  - type: ssl
+  - type: media
+    read_only: false
+  - type: backup
+
+options:
+  api_key: ""
+  ha_token: ""
+  bypass_permissions: false
+  auto_update: true
+  model: ""
+  custom_instructions: ""
+  environment_vars: []
+  init_commands: []
+  plugins: []
+  marketplaces: []
+  skills_git: ""
+  extra_args: []
+  launch_command: ""
+  quick_prompts: []
+  upload_retention_days: 14
+  transcript_retention_days: 30
+  remote_control: false
+  monitoring_interval_hours: 0
+  daily_digest_time: ""
+  proactive_alerts: false
+  proactive_alerts_interval_minutes: 15
+  alert_battery_below: 15
+  alert_water_leak: true
+  alert_open_at_night: true
+  alert_night_start: "23:00"
+  alert_night_end: "06:00"
+  alert_temp_enabled: false
+  alert_temp_low: 5
+  alert_temp_high: 45
+  alert_temp_entities: []
+  alert_co2_above: 1400
+  alert_humidity_enabled: false
+  alert_humidity_low: 25
+  alert_humidity_high: 70
+  alert_offline: true
+  alert_offline_entities: []
+  alert_quiet_hours: ""
+  prompt_api: true
+  api_token: ""
+  prompt_ha_token: ""
+  chat_model: ""
+  chat_model_voice: ""
+  chat_model_write: ""
+  chat_model_camera: ""
+
+schema:
+  api_key: "password"
+  ha_token: "password"
+  bypass_permissions: bool
+  auto_update: bool
+  model: "str?"
+  custom_instructions: "str?"
+  environment_vars:
+    - "str"
+  init_commands:
+    - "str"
+  plugins:
+    - "str"
+  marketplaces:
+    - "str"
+  skills_git: "str?"
+  extra_args:
+    - "str"
+  launch_command: "str?"
+  quick_prompts:
+    - "str"
+  upload_retention_days: "int(0,365)?"
+  transcript_retention_days: "int(0,365)?"
+  remote_control: bool
+  monitoring_interval_hours: "int(0,168)?"
+  daily_digest_time: "str?"
+  proactive_alerts: bool
+  proactive_alerts_interval_minutes: "int(1,1440)?"
+  alert_battery_below: "int(0,100)?"
+  alert_water_leak: bool
+  alert_open_at_night: bool
+  alert_night_start: "str?"
+  alert_night_end: "str?"
+  alert_temp_enabled: bool
+  alert_temp_low: "float?"
+  alert_temp_high: "float?"
+  alert_temp_entities:
+    - "str"
+  alert_co2_above: "int(0,)?"
+  alert_humidity_enabled: bool
+  alert_humidity_low: "float?"
+  alert_humidity_high: "float?"
+  alert_offline: bool
+  alert_offline_entities:
+    - "str"
+  alert_quiet_hours: "str?"
+  prompt_api: bool
+  api_token: "password"
+  prompt_ha_token: "password"
+  chat_model: "str?"
+  chat_model_voice: "str?"
+  chat_model_write: "str?"
+  chat_model_camera: "str?"

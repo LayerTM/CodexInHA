@@ -1,0 +1,227 @@
+configuration:
+  api_key:
+    name: OpenAI API Key
+    description: >-
+      Your OpenAI API key from platform.openai.com (starts with sk-).
+      Use this if you pay for the API directly.
+      Leave empty if you use a ChatGPT plan — then log in interactively
+      with 'codex login' in the console.
+  ha_token:
+    name: HA Token (Long-Lived Access Token)
+    description: >-
+      A Home Assistant Long-Lived Access Token. Create one in Home Assistant:
+      Profile → Security → Long-lived access tokens. When set, Codex can take
+      dashboard screenshots (ha-shot), use hass-cli and the hass-mcp tools, and
+      reach Home Assistant over WebSocket/REST as you. Stored encrypted and
+      persists across add-on updates. Leave empty to skip these features.
+  bypass_permissions:
+    name: Skip Approval Prompts
+    description: >-
+      When enabled, Codex will NOT ask for confirmation before running shell
+      commands, editing files, or taking other actions.
+      Only enable this if you fully trust Codex's decisions.
+      Corresponds to the --dangerously-bypass-approvals-and-sandbox flag.
+  auto_update:
+    name: Auto-Update Codex
+    description: >-
+      When enabled, Codex checks for and installs updates on every add-on
+      startup. Disable if you want to pin a specific version.
+      You can still update manually by running 'codex update' in the terminal.
+  model:
+    name: Model Override
+    description: >-
+      Override the default Codex model. Leave empty to use the Codex CLI
+      default.
+  custom_instructions:
+    name: Custom Instructions
+    description: >-
+      Additional instructions appended to the built-in Home Assistant
+      context (AGENTS.md). Use this to add your preferences, coding
+      standards, or project-specific context.
+  environment_vars:
+    name: Extra Environment Variables
+    description: >-
+      Additional environment variables passed to Codex.
+      Format: KEY=VALUE — one per entry.
+      Example: MY_VAR=hello or NODE_OPTIONS=--max-old-space-size=4096
+  init_commands:
+    name: Initialization Commands
+    description: >-
+      Shell commands run during add-on startup before Codex launches.
+      Useful for installing additional tools or MCP servers.
+      Examples: 'npm install -g @openai/some-mcp-server'
+      or 'apt-get install -y ffmpeg'
+  plugins:
+    name: Extra Plugins
+    description: >-
+      Additional Codex plugins to install on top of the bundled pack,
+      one per entry. Installed once and kept across updates. The base pack
+      (the HA skills, etc.) is always included.
+  marketplaces:
+    name: Extra Plugin Marketplaces
+    description: >-
+      Additional plugin marketplaces to register, one per entry — a GitHub
+      'owner/repo', a Git URL, or a path. Needed before installing plugins
+      from a marketplace that is not one of the built-in ones.
+  skills_git:
+    name: Personal Skills Git Repo
+    description: >-
+      Optional Git repository of your own skills, synced into
+      ~/.codex/skills on every start. Each top-level folder in the repo
+      must be one skill containing a SKILL.md. Leave empty to skip.
+  extra_args:
+    name: Extra Codex Arguments
+    description: >-
+      Extra command-line arguments appended to the default 'codex' invocation.
+      One argument per entry (do not combine multiple flags on one line).
+      Examples: --resume, --model, gpt-5.1-codex, --verbose
+  launch_command:
+    name: Custom Launch Command
+    description: >-
+      Full command to run instead of the default 'codex' invocation.
+      When set, this replaces the default launch entirely — bypass_permissions
+      and extra_args are ignored. Use for advanced customization such as
+      wrapping codex in another tool or running a different binary.
+      Example: codex --resume --dangerously-bypass-approvals-and-sandbox
+      Leave empty to use the default launch behavior.
+  upload_retention_days:
+    name: Uploaded File Retention (days)
+    description: >-
+      Files attached through the web console are stored in /data/uploads.
+      Files older than this many days are deleted automatically.
+      Set 0 to keep uploads forever.
+  remote_control:
+    name: Remote Control (Codex mobile access)
+    description: >-
+      Runs an extra tab so the official ChatGPT mobile app / chatgpt.com can
+      drive this machine's session. Requires a full interactive login inside
+      the terminal ('codex login') — an API key is not enough.
+  monitoring_interval_hours:
+    name: Proactive Monitoring (hours)
+    description: >-
+      When greater than 0, Codex periodically (every N hours) reviews the HA
+      error log and configuration and sends a notification only if it finds
+      something worth flagging. Requires Codex to be logged in and spends plan
+      usage on each check. Set 0 to disable (default). To receive checks on your
+      phone, also set HA_NOTIFY_SERVICE in Environment Variables.
+  daily_digest_time:
+    name: Morning Digest Time (HH:MM)
+    description: >-
+      When set to a time like 08:00 (add-on timezone), Codex sends one short,
+      friendly morning briefing a day — today's weather plus a gentle heads-up
+      about anything worth noting (lights left on overnight, a door left open, low
+      batteries). Requires Codex to be logged in and spends a little plan usage
+      once a day. Leave empty to disable. To receive it on your phone, also set
+      HA_NOTIFY_SERVICE in Environment Variables (otherwise it shows in the HA
+      notification bell).
+  proactive_alerts:
+    name: Proactive Alerts (deterministic)
+    description: >-
+      When enabled, a lightweight background loop watches your Home Assistant
+      states and notifies you the moment something looks wrong — a water leak,
+      a door or window left open at night, a low battery, or a temperature out
+      of range. It is fully deterministic (fixed rules, no Codex and no plan
+      usage) and only alerts on a NEW problem, not every cycle. Off by default.
+      To reach your phone, also set HA_NOTIFY_SERVICE in Environment Variables.
+  proactive_alerts_interval_minutes:
+    name: Alert Check Interval (minutes)
+    description: >-
+      How often the proactive-alerts loop re-checks your home, in minutes
+      (default 15). Lower is more responsive but checks more often.
+  alert_battery_below:
+    name: Low-Battery Threshold (%)
+    description: >-
+      Alert when any battery entity drops below this percentage (default 15).
+      Set 0 to disable low-battery alerts.
+  alert_water_leak:
+    name: Water-Leak Alerts (critical)
+    description: >-
+      Alert when a leak/moisture sensor turns on. This is treated as CRITICAL
+      and is always sent — even during quiet hours. On by default.
+  alert_open_at_night:
+    name: Open-at-Night Alerts
+    description: >-
+      Alert when a door, window, or garage is open during the night window
+      below. On by default.
+  alert_night_start:
+    name: Night Window Start (HH:MM)
+    description: >-
+      Start of the night window used by open-at-night alerts (default 23:00).
+  alert_night_end:
+    name: Night Window End (HH:MM)
+    description: >-
+      End of the night window used by open-at-night alerts (default 06:00).
+  alert_temp_enabled:
+    name: Temperature Alerts
+    description: >-
+      Alert when a temperature sensor reads below the low or above the high
+      band below. Off by default, since sensible bands vary by sensor.
+  alert_temp_low:
+    name: Temperature Low (°)
+    description: >-
+      Alert when an enabled temperature sensor reads below this value
+      (default 5). Only used when Temperature Alerts is on.
+  alert_temp_high:
+    name: Temperature High (°)
+    description: >-
+      Alert when an enabled temperature sensor reads above this value
+      (default 45). Only used when Temperature Alerts is on.
+  alert_quiet_hours:
+    name: Alert Quiet Hours (HH:MM-HH:MM)
+    description: >-
+      During this window, non-critical alerts (battery, temperature,
+      open-at-night) are held back; critical water-leak alerts are always sent.
+      Format like 22:00-07:00. Leave empty to disable quiet hours (default).
+  prompt_api:
+    name: Prompt API (AI Agent integration)
+    description: >-
+      Serves the secure prompt API on the internal port for the companion
+      Home Assistant integration — chat with Codex via Assist and a status
+      sensor. The port is only reachable inside Home Assistant's internal
+      network, every request needs the bearer token, and each prompt runs in
+      a locked-down, read-only Codex session. Disable if you do not use the
+      integration.
+  api_token:
+    name: Prompt API Token (optional)
+    description: >-
+      Bearer token the companion integration must present to the prompt API.
+      Leave empty (recommended): the add-on generates a strong token
+      automatically and hands it to the integration through Supervisor
+      discovery — no manual setup needed. Set it only if you want a fixed,
+      known token as a manual fallback.
+  prompt_ha_token:
+    name: Prompt API HA Token (optional, restricted user)
+    description: >-
+      Home Assistant Long-Lived Access Token used ONLY by prompt-API Codex
+      sessions to read Home Assistant state through the Model Context Protocol
+      Server integration. Best practice: create a dedicated non-admin Home
+      Assistant user and paste that user's token here. Leave empty to fall back
+      to 'HA Token'. Either way, Codex can only see entities exposed to
+      Assist.
+  chat_model:
+    name: Chat Model (AI Agent integration)
+    description: >-
+      Optional model override used ONLY for the companion chat (the AI Agent
+      integration), separate from the console. Use a faster, cheaper model here
+      for snappy, low-cost Assist replies while the console keeps its own
+      model. Leave empty to use the Model Override above, or the Codex
+      default.
+  chat_model_voice:
+    name: Voice Chat Model (AI Agent integration)
+    description: >-
+      Optional even-faster model used ONLY for spoken (voice) Assist turns — voice
+      replies are short, so lower latency matters more than raw capability. Leave
+      empty to use the Chat Model above for voice too.
+  chat_model_write:
+    name: Action Model (AI Agent integration)
+    description: >-
+      Optional model for carrying out an action you have already confirmed in the
+      chat. That step only calls the exact Home Assistant action it was given, so a
+      faster, cheaper model is usually enough. Leave empty to use the Chat Model
+      above. A voice turn keeps the Voice Chat Model when one is set.
+  chat_model_camera:
+    name: Camera Model (AI Agent integration)
+    description: >-
+      Optional model for questions answered from a camera snapshot. Leave empty to
+      use the Chat Model above. A voice turn keeps the Voice Chat Model when one is
+      set.

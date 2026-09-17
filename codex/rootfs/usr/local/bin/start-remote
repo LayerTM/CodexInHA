@@ -1,0 +1,32 @@
+#!/usr/bin/env bash
+# ==============================================================================
+# start-remote: runs inside the "remote" tmux window when remote_control is on.
+# Keeps `codex remote-control` alive and, when it stops (for instance because
+# nobody is signed in), shows what to do and waits — so the tab never silently
+# vanishes.
+# ==============================================================================
+
+export CODEX_HOME=/data/codex
+export NPM_CONFIG_PREFIX=/data/npm
+export PATH="/data/npm/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+
+# No `cd`: the console opens this window in the same working directory as the
+# Codex tab (the core's tmux.js decides it), which is the directory the user
+# already works in.
+
+while true; do
+    codex remote-control start
+    echo ""
+    echo "Remote control stopped — the reason is in the message above."
+    echo "  • Not signed in: run 'codex login' in the Codex tab and sign in with ChatGPT."
+    echo "  • Pairing: 'codex remote-control pair' prints a short-lived code."
+    echo "  r) retry remote control    s) drop to shell"
+    echo ""
+    # `|| sleep 3` prevents a busy loop if this ever runs without a tty.
+    read -r -n 1 -p "> " choice || sleep 3
+    echo ""
+    case "${choice}" in
+        s|S) bash ;;
+        *)   : ;;
+    esac
+done

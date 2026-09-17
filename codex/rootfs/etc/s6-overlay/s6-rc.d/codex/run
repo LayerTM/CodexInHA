@@ -1,0 +1,9 @@
+#!/command/with-contenv bash
+# shellcheck shell=bash
+# ==============================================================================
+# codex: single longrun service
+# The start script comes from ha-agent-core; the Codex-specific steps it runs
+# are in /usr/local/lib/engine-hooks.sh. with-contenv hands it the container's
+# environment (SUPERVISOR_TOKEN and the rest).
+# ==============================================================================
+exec /usr/local/bin/addon-run

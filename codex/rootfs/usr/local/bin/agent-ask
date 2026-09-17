@@ -1,0 +1,38 @@
+#!/usr/bin/env bash
+# The engine's one-shot question for the core's health check and morning
+# briefing: the prompt on stdin, the answer on stdout.
+#
+# The run has no tools at all — no shell, no file access, no web, no MCP server,
+# nothing of the user's configuration, rules or instructions — and it is
+# ephemeral, so it leaves no session file. The caller removes the Home Assistant
+# and Supervisor credentials from the environment.
+set -o pipefail
+
+export CODEX_HOME=/data/codex-prompt
+work=$(mktemp -d)
+trap 'rm -rf "${work}"' EXIT
+
+answer=$(/data/npm/bin/codex exec \
+    --json \
+    --ephemeral \
+    --skip-git-repo-check \
+    --ignore-user-config \
+    --ignore-rules \
+    --color never \
+    --sandbox read-only \
+    -c 'approval_policy="never"' \
+    -c 'web_search="disabled"' \
+    -c 'check_for_update_on_startup=false' \
+    -c 'project_doc_max_bytes=0' \
+    --disable shell_tool \
+    --disable apps \
+    --disable plugins \
+    --disable hooks \
+    --disable memories \
+    --cd "${work}" \
+    - \
+    | jq -r 'select(.type == "item.completed") | select(.item.type == "agent_message") | .item.text' \
+    | tail -n 1)
+
+[ -n "${answer}" ] || exit 1
+printf '%s\n' "${answer}"
