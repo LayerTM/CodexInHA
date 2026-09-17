@@ -176,3 +176,32 @@ test('usage separates cached input and tolerates missing or odd counts', () => {
   assert.equal(sparse.status, 'ok');
   assert.equal(sparse.usage, null);
 });
+
+test('a call keeps its identity and ends once', () => {
+  const swapped = decode([...START, mcp('started', 'x', 'ha', 'HassTurnOn'), mcp('completed', 'x', 'ha', 'GetLiveContext'), FINAL, DONE]).outcome;
+  assert.equal(swapped.status, 'error');
+  assert.equal(swapped.reason, 'protocol');
+  assert.deepEqual(swapped.toolsUsed, []);
+  const otherServer = decode([...START, mcp('started', 'x', 'codex', 'list_mcp_resources'), mcp('completed', 'x', 'ha', 'HassTurnOn'), FINAL, DONE]).outcome;
+  assert.equal(otherServer.reason, 'protocol');
+  const failedThenOk = decode([...START, mcp('started', 'x', 'ha', 'HassTurnOn'),
+    mcp('completed', 'x', 'ha', 'HassTurnOn', { status: 'failed', error: { message: 'denied' } }),
+    mcp('completed', 'x', 'ha', 'HassTurnOn'), FINAL, DONE]).outcome;
+  assert.equal(failedThenOk.status, 'error');
+  assert.equal(failedThenOk.reason, 'protocol');
+  assert.equal(failedThenOk.mcpFailed, true);
+  assert.deepEqual(failedThenOk.toolsUsed, []);
+  const twice = decode([...START, mcp('completed', 'x', 'ha', 'HassTurnOn'), mcp('completed', 'x', 'ha', 'HassTurnOn'), FINAL, DONE]).outcome;
+  assert.equal(twice.reason, 'protocol');
+  const restarted = decode([...START, mcp('completed', 'x', 'ha', 'HassTurnOn'), mcp('started', 'x', 'ha', 'HassTurnOn'), FINAL, DONE]).outcome;
+  assert.equal(restarted.reason, 'protocol');
+  for (const id of ['', undefined, 7]) {
+    const r = decode([...START, mcp('completed', /** @type {any} */ (id), 'ha', 'HassTurnOn'), FINAL, DONE]).outcome;
+    assert.equal(r.reason, 'protocol', String(id));
+    assert.deepEqual(r.toolsUsed, []);
+  }
+  const progress = decode([...START, mcp('started', 'x', 'ha', 'HassTurnOn'), mcp('started', 'x', 'ha', 'HassTurnOn'),
+    { type: 'item.updated', item: mcp('started', 'x', 'ha', 'HassTurnOn').item }, mcp('completed', 'x', 'ha', 'HassTurnOn'), FINAL, DONE]).outcome;
+  assert.equal(progress.status, 'ok');
+  assert.deepEqual(progress.toolsUsed, ['HassTurnOn']);
+});

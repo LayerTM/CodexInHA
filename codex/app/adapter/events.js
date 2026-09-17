@@ -71,7 +71,7 @@ function createDecoder({ haServer = HA_SERVER } = {}) {
     finalText: null,
     usage: null,
     warnings: [],
-    toolCalls: new Map(), // item id -> { server, tool, ha, status, error }
+    toolCalls: new Map(), // item id -> { server, tool, ha, status, error }; built-in calls too, for identity checks
   };
 
   function fail(reason, message) {
@@ -87,20 +87,22 @@ function createDecoder({ haServer = HA_SERVER } = {}) {
     const server = typeof it.server === 'string' ? it.server : '';
     const tool = typeof it.tool === 'string' ? it.tool : '';
     const id = typeof it.id === 'string' ? it.id : '';
-    if (server === CLI_SERVER && CLI_BUILTIN_TOOLS.has(tool)) {
-      return { kind: phase === 'start' ? 'tool-start' : 'tool-result', id, server, tool, ha: false, builtin: true,
-        ok: phase === 'start' ? undefined : it.status === 'completed' && !it.error };
+    if (id === '') return fail('protocol', 'MCP call without an id');
+    // One id is one call: its server and tool never change, and it ends once.
+    const known = state.toolCalls.get(id);
+    if (known && (known.server !== server || known.tool !== tool)) {
+      return fail('protocol', `MCP call ${id} changed its identity`);
     }
-    if (server !== haServer || tool === '') return violate(`MCP call ${server || '?'}/${tool || '?'}`);
-    const call = state.toolCalls.get(id) || { server, tool, ha: true, status: 'started', error: null };
-    if (phase === 'start') {
-      state.toolCalls.set(id, call);
-      return { kind: 'tool-start', id, server, tool, ha: true };
-    }
+    if (known && known.status !== 'started') return fail('protocol', `MCP call ${id} reported after it ended`);
+    if (known && phase === 'start') return null; // progress of a started call
+    const builtin = server === CLI_SERVER && CLI_BUILTIN_TOOLS.has(tool);
+    if (!builtin && (server !== haServer || tool === '')) return violate(`MCP call ${server || '?'}/${tool || '?'}`);
+    const call = known || { server, tool, ha: !builtin, status: 'started', error: null };
+    state.toolCalls.set(id, call);
+    if (phase === 'start') return { kind: 'tool-start', id, server, tool, ha: call.ha, builtin };
     call.status = it.status === 'completed' && !it.error ? 'completed' : 'failed';
     call.error = it.error ? errorText(it.error) : null;
-    state.toolCalls.set(id, call);
-    return { kind: 'tool-result', id, server, tool, ha: true, ok: call.status === 'completed', error: call.error };
+    return { kind: 'tool-result', id, server, tool, ha: call.ha, builtin, ok: call.status === 'completed', error: call.error };
   }
 
   function decodeItem(phase, it) {
@@ -178,7 +180,7 @@ function createDecoder({ haServer = HA_SERVER } = {}) {
    * @param {number|null} exitCode
    */
   function end(exitCode) {
-    const calls = [...state.toolCalls.values()];
+    const calls = [...state.toolCalls.values()].filter((c) => c.ha);
     const base = {
       threadId: state.threadId,
       text: state.finalText,

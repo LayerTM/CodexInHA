@@ -7,6 +7,7 @@ const os = require('node:os');
 const path = require('node:path');
 const { EventEmitter } = require('node:events');
 const { PassThrough } = require('node:stream');
+const { spawnSync } = require('node:child_process');
 
 const {
   normalizeRateLimits, accountMode, readAccountLimits, credentialEpoch, bucketSuffix,
@@ -79,6 +80,9 @@ test('a payload that is not what it claims gives nothing rather than a guess', (
     single({ primary: win(5, 0) }),
     single({ primary: win(5, 12.5) }),
     single({ primary: win(5, 300, -3) }),
+    single({ primary: win(5, 300, 1e14) }),
+    single({ primary: win(5, 300, 253402300800) }),
+    single({ primary: win(5, 300, 1790001602.5) }),
     single({ primary: win(5, 300, /** @type {any} */ ('soon')) }),
     single({ primary: 'x' }),
     single({ primary: win(1, 300), secondary: win(2, 300) }),
@@ -124,7 +128,7 @@ function fakeServer(replies, { failSpawn = false, emitError = false } = {}) {
         calls.requests.push(msg.method);
         const reply = replies[msg.method];
         const body = typeof reply === 'function' ? reply(msg) : undefined;
-        if (body !== undefined) child.stdout.write(`${JSON.stringify({ id: msg.id, ...body })}\n`);
+        if (body !== undefined) setImmediate(() => child.stdout.write(`${JSON.stringify({ id: msg.id, ...body })}\n`));
       }
     });
     if (emitError) setImmediate(() => child.emit('error', new Error('ENOENT')));
@@ -206,4 +210,11 @@ test('the credential epoch tells logins apart without revealing them', (t) => {
   assert.equal(credentialEpoch(dir), first);
   fs.writeFileSync(path.join(dir, 'auth.json'), '{"tokens":{"access_token":"bbb"}}');
   assert.notEqual(credentialEpoch(dir), first);
+});
+
+test('a payload the normalizer cannot handle never takes the process down', () => {
+  const script = path.join(__dirname, 'fixtures', 'limits-survival.js');
+  const r = spawnSync(process.execPath, [script], { encoding: 'utf8', timeout: 20000 });
+  assert.equal(r.status, 0, r.stderr);
+  assert.equal(r.stdout.trim(), 'result null');
 });

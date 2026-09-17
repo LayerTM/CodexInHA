@@ -24,6 +24,8 @@ const SESSION_MINS = 300;
 const WEEK_MINS = 10080;
 const DEFAULT_TIMEOUT_MS = 20000;
 const MAX_LINE_BYTES = 1024 * 1024;
+// Reset times are Unix seconds; anything past 9999-12-31 is not a date.
+const MAX_RESET_SECONDS = 253402300799;
 
 function windowBase(mins) {
   if (mins === SESSION_MINS) return 'session';
@@ -50,7 +52,7 @@ function windowEntry(win, kind, model) {
   if (percent < 0 || percent > 100) return null;
   let resetsAt = null;
   if (win.resetsAt !== null && win.resetsAt !== undefined) {
-    if (!Number.isFinite(win.resetsAt) || win.resetsAt <= 0) return null;
+    if (!Number.isInteger(win.resetsAt) || win.resetsAt <= 0 || win.resetsAt > MAX_RESET_SECONDS) return null;
     resetsAt = new Date(win.resetsAt * 1000).toISOString();
   }
   return { kind: kind(mins), percent, severity: null, resets_at: resetsAt, model };
@@ -196,7 +198,11 @@ function readAccountLimits({ bin, codexHome, env = {}, timeoutMs = DEFAULT_TIMEO
         } catch {
           continue; // not a protocol line
         }
-        onMessage(msg);
+        try {
+          onMessage(msg);
+        } catch {
+          finish(null); // a payload this module cannot handle is no answer, never a crash
+        }
       }
     });
     send({ id: 1, method: 'initialize', params: { clientInfo: { name: 'codex-ha-addon', version: '1' } } });
