@@ -1,0 +1,15 @@
+{"type":"thread.started","thread_id":"01a0aa75-4367-7430-b194-a155ea70efe7"}
+{"type":"item.completed","item":{"id":"item_0","type":"error","message":"`--dangerously-bypass-hook-trust` is enabled. Enabled hooks may run without review for this invocation."}}
+{"type":"item.completed","item":{"id":"item_1","type":"error","message":"`--dangerously-bypass-hook-trust` is enabled. Enabled hooks may run without review for this invocation."}}
+{"type":"turn.started"}
+{"type":"item.completed","item":{"id":"item_2","type":"agent_message","text":"I’ll run the command, then call `ha_probe` three times in order."}}
+{"type":"item.started","item":{"id":"item_3","type":"command_execution","command":"/bin/bash -lc 'echo hi'","aggregated_output":"","exit_code":null,"status":"in_progress"}}
+{"type":"item.completed","item":{"id":"item_3","type":"command_execution","command":"/bin/bash -lc 'echo hi'","aggregated_output":"hi\n","exit_code":0,"status":"completed"}}
+{"type":"item.started","item":{"id":"item_4","type":"mcp_tool_call","server":"ha","tool":"ha_probe","arguments":{"note":"1"},"result":null,"error":null,"status":"in_progress"}}
+{"type":"item.completed","item":{"id":"item_4","type":"mcp_tool_call","server":"ha","tool":"ha_probe","arguments":{"note":"1"},"result":{"content":[{"type":"text","text":"MARKER-HA-7431"}],"structured_content":null},"error":null,"status":"completed"}}
+{"type":"item.started","item":{"id":"item_5","type":"mcp_tool_call","server":"ha","tool":"ha_probe","arguments":{"note":"2"},"result":null,"error":null,"status":"in_progress"}}
+{"type":"item.completed","item":{"id":"item_5","type":"mcp_tool_call","server":"ha","tool":"ha_probe","arguments":{"note":"2"},"result":{"content":[{"type":"text","text":"MARKER-HA-7431"}],"structured_content":null},"error":null,"status":"completed"}}
+{"type":"item.started","item":{"id":"item_6","type":"mcp_tool_call","server":"ha","tool":"ha_probe","arguments":{"note":"3"},"result":null,"error":null,"status":"in_progress"}}
+{"type":"item.completed","item":{"id":"item_6","type":"mcp_tool_call","server":"ha","tool":"ha_probe","arguments":{"note":"3"},"result":{"content":[{"type":"text","text":"MARKER-HA-7431"}],"structured_content":null},"error":null,"status":"completed"}}
+{"type":"item.completed","item":{"id":"item_7","type":"agent_message","text":"done"}}
+{"type":"turn.completed","usage":{"input_tokens":57890,"cached_input_tokens":54912,"cache_write_input_tokens":0,"output_tokens":144,"reasoning_output_tokens":0}}

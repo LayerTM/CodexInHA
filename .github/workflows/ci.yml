@@ -10,6 +10,34 @@ permissions:
   contents: read
 
 jobs:
+  test:
+    name: Tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: "26"
+      - name: Install dependencies
+        run: npm ci
+      - name: Run tests
+        run: npm test
+
+  lint-js:
+    name: JS lint & types
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: "26"
+      - name: Install dependencies
+        run: npm ci
+      - name: Lint (eslint)
+        run: npm run lint
+      - name: Type-check (tsc --checkJs)
+        run: npm run typecheck
+
   secret-scan:
     runs-on: ubuntu-latest
     steps:

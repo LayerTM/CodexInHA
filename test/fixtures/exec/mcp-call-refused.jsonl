@@ -1,0 +1,11 @@
+{"type":"thread.started","thread_id":"01a0aab3-82ae-72d1-8aa4-49231fd93104"}
+{"type":"turn.started"}
+{"type":"item.completed","item":{"id":"item_0","type":"agent_message","text":"I’ll check whether those tools are available and call them in the requested order."}}
+{"type":"item.started","item":{"id":"item_1","type":"mcp_tool_call","server":"ha","tool":"ha_write","arguments":{"note":"w"},"result":null,"error":null,"status":"in_progress"}}
+{"type":"item.completed","item":{"id":"item_1","type":"mcp_tool_call","server":"ha","tool":"ha_write","arguments":{"note":"w"},"result":null,"error":{"message":"MCP tool call requires approval, but approval policy is never"},"status":"failed"}}
+{"type":"item.started","item":{"id":"item_2","type":"mcp_tool_call","server":"ha","tool":"ha_other","arguments":{"note":"o"},"result":null,"error":null,"status":"in_progress"}}
+{"type":"item.completed","item":{"id":"item_2","type":"mcp_tool_call","server":"ha","tool":"ha_other","arguments":{"note":"o"},"result":{"content":[{"type":"text","text":"OK-ha_other"}],"structured_content":null},"error":null,"status":"completed"}}
+{"type":"item.started","item":{"id":"item_3","type":"mcp_tool_call","server":"ha","tool":"ha_read","arguments":{"note":"r"},"result":null,"error":null,"status":"in_progress"}}
+{"type":"item.completed","item":{"id":"item_3","type":"mcp_tool_call","server":"ha","tool":"ha_read","arguments":{"note":"r"},"result":{"content":[{"type":"text","text":"OK-ha_read"}],"structured_content":null},"error":null,"status":"completed"}}
+{"type":"item.completed","item":{"id":"item_4","type":"agent_message","text":"No tools were missing. ha_write was blocked because approval is required but the approval policy is “never.” ha_other and ha_read succeeded.\n\ndone."}}
+{"type":"turn.completed","usage":{"input_tokens":21635,"cached_input_tokens":10496,"cache_write_input_tokens":0,"output_tokens":153,"reasoning_output_tokens":0}}

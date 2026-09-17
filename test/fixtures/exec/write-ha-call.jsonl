@@ -1,0 +1,7 @@
+{"type":"thread.started","thread_id":"01a0adf2-de09-7610-a994-1046425ea1c7"}
+{"type":"turn.started"}
+{"type":"item.completed","item":{"id":"item_0","type":"agent_message","text":"I’ll check whether the two named tools are available and call them if they are.\n"}}
+{"type":"item.started","item":{"id":"item_1","type":"mcp_tool_call","server":"ha","tool":"ha_read","arguments":{"note":"r"},"result":null,"error":null,"status":"in_progress"}}
+{"type":"item.completed","item":{"id":"item_1","type":"mcp_tool_call","server":"ha","tool":"ha_read","arguments":{"note":"r"},"result":{"content":[{"type":"text","text":"OK-ha_read"}],"structured_content":null},"error":null,"status":"completed"}}
+{"type":"item.completed","item":{"id":"item_2","type":"agent_message","text":"{\"text\":\"Could not call: ha_write. Called ha_read with note \\\"r\\\".\",\"markers\":[]}"}}
+{"type":"turn.completed","usage":{"input_tokens":19044,"cached_input_tokens":9216,"cache_write_input_tokens":0,"output_tokens":170,"reasoning_output_tokens":0}}
