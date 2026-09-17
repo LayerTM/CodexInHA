@@ -1,0 +1,11 @@
+{"type":"thread.started","thread_id":"01a0ae4b-03a9-7b12-a647-ed73510e7bbc"}
+{"type":"turn.started"}
+{"type":"item.completed","item":{"id":"item_0","type":"agent_message","text":"I’ll find `ha_read`, call it with note `\"r\"`, and then list and read the available resources from the `ha` server.\n"}}
+{"type":"item.started","item":{"id":"item_1","type":"mcp_tool_call","server":"ha","tool":"ha_read","arguments":{"note":"r"},"result":null,"error":null,"status":"in_progress"}}
+{"type":"item.completed","item":{"id":"item_1","type":"mcp_tool_call","server":"ha","tool":"ha_read","arguments":{"note":"r"},"result":{"content":[{"type":"text","text":"OK-ha_read"}],"structured_content":null},"error":null,"status":"completed"}}
+{"type":"item.started","item":{"id":"item_2","type":"mcp_tool_call","server":"ha","tool":"list_mcp_resources","arguments":{"server":"ha"},"result":null,"error":null,"status":"in_progress"}}
+{"type":"item.started","item":{"id":"item_3","type":"mcp_tool_call","server":"ha","tool":"list_mcp_resource_templates","arguments":{"server":"ha"},"result":null,"error":null,"status":"in_progress"}}
+{"type":"item.completed","item":{"id":"item_2","type":"mcp_tool_call","server":"ha","tool":"list_mcp_resources","arguments":{"server":"ha"},"result":null,"error":{"message":"resources/list failed: resources/list failed for `ha`: Mcp error: -32601: Method not found"},"status":"failed"}}
+{"type":"item.completed","item":{"id":"item_3","type":"mcp_tool_call","server":"ha","tool":"list_mcp_resource_templates","arguments":{"server":"ha"},"result":null,"error":{"message":"resources/templates/list failed: resources/templates/list failed for `ha`: Mcp error: -32601: Method not found"},"status":"failed"}}
+{"type":"item.completed","item":{"id":"item_4","type":"agent_message","text":"{\"text\":\"Called ha_read with note \\\"r\\\". It returned: \\\"OK-ha_read\\\".\\n\\nBoth resource listing and resource-template listing for server ha failed with MCP error -32601: \\\"Method not found\\\". No resource URIs were available to read, so no resource text could be quoted.\",\"markers\":[]}"}}
+{"type":"turn.completed","usage":{"input_tokens":38397,"cached_input_tokens":28032,"cache_write_input_tokens":0,"output_tokens":232,"reasoning_output_tokens":12}}
