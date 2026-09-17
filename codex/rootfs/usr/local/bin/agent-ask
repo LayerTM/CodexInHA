@@ -1,38 +1,99 @@
-#!/usr/bin/env bash
-# The engine's one-shot question for the core's health check and morning
-# briefing: the prompt on stdin, the answer on stdout.
-#
-# The run has no tools at all — no shell, no file access, no web, no MCP server,
-# nothing of the user's configuration, rules or instructions — and it is
-# ephemeral, so it leaves no session file. The caller removes the Home Assistant
-# and Supervisor credentials from the environment.
-set -o pipefail
+#!/usr/bin/env node
+'use strict';
 
-export CODEX_HOME=/data/codex-prompt
-work=$(mktemp -d)
-trap 'rm -rf "${work}"' EXIT
+// The engine's one-shot question for the core's health check and morning
+// briefing: the prompt on stdin, the answer on stdout, a non-zero exit when the
+// agent gives none. The caller strips the Home Assistant and Supervisor
+// credentials from the environment.
+//
+// The restrictions are NOT written here. They come from the adapter's launch
+// profile — the same list a prompt-API request is built from — because these
+// questions are asked about data the add-on collected from Home Assistant, and
+// a run that could reach a shell, a browser or the web would be reading that
+// untrusted text with tools in hand. Two lists drift: the profile gains a
+// switch when the CLI gains a feature, and a copy here would not.
+//
+// This run gets no Home Assistant server at all, no schema and no image.
 
-answer=$(/data/npm/bin/codex exec \
-    --json \
-    --ephemeral \
-    --skip-git-repo-check \
-    --ignore-user-config \
-    --ignore-rules \
-    --color never \
-    --sandbox read-only \
-    -c 'approval_policy="never"' \
-    -c 'web_search="disabled"' \
-    -c 'check_for_update_on_startup=false' \
-    -c 'project_doc_max_bytes=0' \
-    --disable shell_tool \
-    --disable apps \
-    --disable plugins \
-    --disable hooks \
-    --disable memories \
-    --cd "${work}" \
-    - \
-    | jq -r 'select(.type == "item.completed") | select(.item.type == "agent_message") | .item.text' \
-    | tail -n 1)
+const fs = require('node:fs');
+const { spawn } = require('node:child_process');
 
-[ -n "${answer}" ] || exit 1
-printf '%s\n' "${answer}"
+const ADAPTER = '/opt/agent-console/adapter';
+const cli = require(`${ADAPTER}/cli`);
+const launch = require(`${ADAPTER}/launch`);
+const runner = require(`${ADAPTER}/runner`);
+
+function readStdin() {
+  try {
+    return fs.readFileSync(0, 'utf8');
+  } catch {
+    return '';
+  }
+}
+
+function fail(message) {
+  process.stderr.write(`agent-ask: ${message}\n`);
+  process.exit(1);
+}
+
+function main() {
+  const prompt = readStdin();
+  if (prompt.trim() === '') fail('no prompt on stdin');
+
+  let command;
+  try {
+    // The same home a prompt run uses: nothing but a link to the console's
+    // sign-in, so the question reads none of the user's own instructions.
+    launch.preparePromptHome(cli.CONSOLE_HOME, cli.PROMPT_HOME);
+    // A directory of its own, like a prompt run's: two questions can be asked
+    // at once, and neither may empty the other's.
+    command = launch.askLaunch({
+      features: runner.features(),
+      workDir: require('node:path').join(runner.newRunDir(), 'work'),
+    });
+  } catch (err) {
+    fail(err.message);
+    return;
+  }
+
+  const child = spawn(cli.CODEX_BIN, command.argv, {
+    cwd: command.cwd,
+    env: { ...process.env, ...command.env, CODEX_HOME: cli.PROMPT_HOME },
+    stdio: ['pipe', 'pipe', 'inherit'],
+  });
+
+  let answer = null;
+  let buffer = '';
+  child.stdout.setEncoding('utf8');
+  child.stdout.on('data', (chunk) => {
+    buffer += chunk;
+    let nl;
+    // The answer is the last agent message of the run; every other event is
+    // output this caller has no use for.
+    while ((nl = buffer.indexOf('\n')) !== -1) {
+      const line = buffer.slice(0, nl).trim();
+      buffer = buffer.slice(nl + 1);
+      if (line === '') continue;
+      let event;
+      try {
+        event = JSON.parse(line);
+      } catch {
+        continue;
+      }
+      const item = event && event.type === 'item.completed' ? event.item : null;
+      if (item && item.type === 'agent_message' && typeof item.text === 'string') answer = item.text;
+    }
+  });
+
+  child.on('error', (err) => fail(err.message));
+  child.on('close', (code) => {
+    if (code !== 0) fail(`the agent exited with status ${code}`);
+    if (answer === null || answer.trim() === '') fail('the agent gave no answer');
+    process.stdout.write(`${answer}\n`);
+  });
+
+  child.stdin.on('error', () => { /* the child died before reading stdin */ });
+  child.stdin.end(prompt, 'utf8');
+}
+
+main();

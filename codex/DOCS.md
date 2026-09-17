@@ -41,7 +41,7 @@ per-session setup:
 | `ha-check` | Validate the HA configuration (run before any restart) |
 | `ha-state [entity\|domain.]` | Query entity states, e.g. `ha-state light.kitchen`, `ha-state light.` |
 | `ha-shot <path> [out.png] [WxH]` | Screenshot a Lovelace dashboard to PNG, e.g. `ha-shot /lovelace/0 /tmp/d.png 1280x800` (needs **HA Token**) |
-| `ha-usage [days]` | Summarize Codex token usage (today / N days / all-time, per model) from the console's session history and the prompt API's audit log. This add-on reports no cost, so the figures are token counts, never a dollar amount |
+| `ha-usage [days]` | Summarize Codex token usage (today / N days / all-time, per model) from the console's session history. This add-on reports no cost, so the figures are token counts, never a dollar amount. The Prompt API does not run in this version, so it contributes nothing |
 | `ha-audit [N]` | Show what Codex has changed: service calls, edits under your config, Core restarts, safety backups, and every change made through a connected tool server (dashboard edits included). Reads are not recorded; a preview is marked `(dry-run)` |
 | `yq` | Edit YAML config files |
 | `hass-cli` | Entity/service queries (needs **HA Token**) |
@@ -70,7 +70,7 @@ reconciled on every start.
 | `init_commands` | Shell commands run at startup (install tools, MCP servers). |
 | `plugins` | Extra plugins to install, one per entry. |
 | `marketplaces` | Extra plugin marketplaces (GitHub `owner/repo`, URL, or path). |
-| `skills_git` | Git repo of your own skills, synced into `~/.codex/skills` each start. |
+| `skills_git` | Git repo of your own skills, synced into `/data/codex/skills` each start. |
 | `extra_args` | Extra `codex` CLI arguments, one per entry. |
 | `launch_command` | Full replacement for the default `codex` invocation. |
 | `quick_prompts` | Your own prompts for the 💡 menu — a list of strings. Each becomes a button that *inserts* the text (never auto-runs), shown under *Your prompts*. |
@@ -79,8 +79,8 @@ reconciled on every start.
 | `remote_control` | Adds a tab running Codex's own remote-control command: drive this session from the ChatGPT mobile app / chatgpt.com. Requires a full `codex login`; an API key is not sufficient. It runs in the same folder as the Codex tab, so accept Codex's trust prompt there once first. |
 | `monitoring_interval_hours` | Opt-in proactive monitoring: every N hours Codex reviews the error log and config and notifies you only if it finds something (0 = off). |
 | `proactive_alerts` + `alert_*` | Opt-in **deterministic** anomaly alerts (no Codex, no plan usage): notify on a water leak, door/window open at night, low battery, temperature out of band, high CO2, humidity out of band, or a watched device/internet gateway going offline. See *Proactive alerts* below. |
-| `prompt_api` | Serve the secure Prompt API for the companion **AI Agent** (`claude_ha`) integration (on by default). See *The companion integration* below. |
-| `api_token` | Optional fixed bearer token for the Prompt API. Leave empty — the add-on generates one and hands it to the integration via discovery. |
+| `prompt_api` | Would serve the Prompt API for the companion **AI Agent** (`claude_ha`) integration. **It does not start in this version, whatever this is set to** — see *The companion integration* below for why. |
+| `api_token` | Optional fixed bearer token for the Prompt API. Leave empty — the add-on generates one and hands it to the integration via discovery. Idle while the Prompt API does not start. |
 | `prompt_ha_token` | Optional HA token used only by Prompt-API sessions to read state through the MCP Server integration. Best practice: a dedicated non-admin user's token. Falls back to `ha_token`. |
 
 This add-on reports no cost for any run (the CLI does not report a dollar
@@ -232,8 +232,10 @@ deliberately much more restricted than the interactive console:
   that call is driven solely by the validated intent, never by the original
   free-form message, so untrusted text never reaches the state-changing path.
 - Rate-limited, concurrency-capped, time-bounded, output-capped, and
-  secret-redacted; every call is written to the audit log (`ha-audit`), and no
-  transcript of a request is kept once it has answered.
+  secret-redacted; no transcript of a request is kept once it has answered. Each
+  Home Assistant call also has to reach the audit log (`ha-audit`) with the
+  arguments it used — that is the one piece missing here, and the reason this
+  API does not start (see the note above).
 - **Its own model — optionally faster for voice.** The companion chat can run a
   different model from the interactive console (`chat_model`) — e.g. a quicker,
   cheaper one for snappy Assist replies — and spoken (voice) turns can use an even

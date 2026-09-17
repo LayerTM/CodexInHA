@@ -74,7 +74,6 @@ jobs:
             codex/core/assemble.sh \
             .github/scripts/core_archive.sh \
             codex/rootfs/usr/local/lib/engine-hooks.sh \
-            codex/rootfs/usr/local/bin/agent-ask \
             codex/rootfs/usr/local/bin/update-codex \
             codex/rootfs/usr/local/bin/start-remote
 

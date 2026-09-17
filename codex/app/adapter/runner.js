@@ -28,11 +28,16 @@ const launch = require('./launch');
 const events = require('./events');
 
 // Everything a run needs on disk, private to this add-on and never the console's
-// home: the schema of the moment, and the empty directory a run starts in (the
-// CLI reads AGENTS.md and the project docs of its working directory).
+// home: its schema, and the empty directory it starts in (the CLI reads
+// AGENTS.md and the project docs of its working directory).
+//
+// Each run gets a directory of ITS OWN. The core runs two requests at once, and
+// one shared directory meant the second run emptied the directory the first was
+// working in and overwrote the schema it was answering against.
 const RUN_DIR = path.join(cli.PROMPT_HOME, 'run');
-const WORK_DIR = path.join(RUN_DIR, 'work');
-const SCHEMA_FILE = path.join(RUN_DIR, 'schema.json');
+// A directory nothing has written to for this long belongs to a run that is
+// over: the core's own limit is far below it.
+const RUN_DIR_MAX_AGE_MS = 60 * 60 * 1000;
 
 // A Home Assistant tool as the core names it. The CLI reports an MCP call with
 // the server and the tool apart, so the name the core sees is composed here and
@@ -96,31 +101,57 @@ function relay(file) {
   }
 }
 
-function writeSchema(schema) {
-  fs.mkdirSync(RUN_DIR, { recursive: true, mode: 0o700 });
-  fs.writeFileSync(SCHEMA_FILE, schema, { mode: 0o600 });
-  return SCHEMA_FILE;
+// Directories of runs that are long over. A run cannot be asked when it ended,
+// so age decides; nothing is removed while it could still be in use.
+function sweepRunDirs(now = Date.now(), root = RUN_DIR) {
+  let entries;
+  try {
+    entries = fs.readdirSync(root);
+  } catch {
+    return;
+  }
+  for (const name of entries) {
+    const dir = path.join(root, name);
+    try {
+      if (now - fs.statSync(dir).mtimeMs > RUN_DIR_MAX_AGE_MS) fs.rmSync(dir, { recursive: true, force: true });
+    } catch { /* another run removed it, or it is not ours to remove */ }
+  }
 }
 
-// The run's own working directory, emptied before every run: the CLI reads what
-// it finds there, and a leftover file from an earlier run is input nobody meant
-// to give it.
-function freshWorkDir() {
-  fs.rmSync(WORK_DIR, { recursive: true, force: true });
-  fs.mkdirSync(WORK_DIR, { recursive: true, mode: 0o700 });
-  return WORK_DIR;
+// One run's own empty directory. The CLI reads what it finds in its working
+// directory, so a leftover file from another run is input nobody meant to give
+// it — and another run's live files are not ours to delete.
+function newRunDir(root = RUN_DIR) {
+  fs.mkdirSync(root, { recursive: true, mode: 0o700 });
+  sweepRunDirs(Date.now(), root);
+  const dir = fs.mkdtempSync(path.join(root, 'run-'));
+  fs.chmodSync(dir, 0o700);
+  fs.mkdirSync(path.join(dir, 'work'), { mode: 0o700 });
+  return dir;
+}
+
+function writeSchema(dir, schema) {
+  const file = path.join(dir, 'schema.json');
+  fs.writeFileSync(file, schema, { mode: 0o600 });
+  return file;
 }
 
 /**
  * The complete command line and extra environment for one run spec.
  */
 function launchRun(spec, { env }) {
+  // The home a run reads its login from: a directory of its own holding
+  // nothing but a link to the console's sign-in, so a run never reads the
+  // user's own instructions or configuration. Checked before every run, because
+  // a file that appeared there since would be read as instructions.
+  launch.preparePromptHome(cli.CONSOLE_HOME, cli.PROMPT_HOME);
   const ha = relay(spec.mcpConfigPath);
+  const runDir = newRunDir();
   const built = launch.promptLaunch({
     mode: spec.read ? 'read' : 'write',
     features: features(),
-    workDir: freshWorkDir(),
-    schemaFile: writeSchema(spec.schema),
+    workDir: path.join(runDir, 'work'),
+    schemaFile: writeSchema(runDir, spec.schema),
     model: spec.model || undefined,
     imageFile: spec.vision && spec.imagePath ? spec.imagePath : undefined,
     ha: ha && spec.haAllowed.length > 0
@@ -165,16 +196,18 @@ function createDecoder(spec) {
   const allowed = new Set(spec.haAllowed.map(toolBasename).filter(Boolean));
   const decoder = events.createDecoder({ allowedTools: [...allowed] });
   const model = spec.model || '';
-  let finalText = null;
   let usage = null;
   let done = false;
 
-  const failure = (message) => {
+  // `deterministic` tells the core whether a retry could ever end differently.
+  // A policy violation could not: the run tried something the profile forbids,
+  // and the same request would try it again, so it is not re-run.
+  const failure = (message, reason) => {
     done = true;
     return {
       type: 'result',
       isError: true,
-      deterministic: false,
+      deterministic: reason === 'policy',
       structured: undefined,
       text: message,
       numTurns: null,
@@ -195,14 +228,11 @@ function createDecoder(spec) {
         case 'tool-result':
           out.push({ type: 'tool-result', id: ev.id, isError: !ev.ok });
           break;
-        case 'message':
-          finalText = ev.text;
-          break;
         case 'usage':
           usage = ev.usage;
           break;
         case 'failure':
-          terminal = failure(ev.message);
+          terminal = failure(ev.message, ev.reason);
           break;
         default:
           break;
@@ -212,28 +242,26 @@ function createDecoder(spec) {
       out.push(terminal);
       return out;
     }
-    // A completed turn is the only success; the answer is the last agent
-    // message, which the schema made a JSON object.
+    // A completed turn ends the run, and whether it succeeded is decided in ONE
+    // place: events.js, which already holds what counts as a complete turn and
+    // as an answer. The process has not exited yet, so the status it is asked
+    // about is the one it would have if nothing else went wrong; the core
+    // checks the real one itself.
     if (parsed && parsed.type === 'turn.completed') {
       done = true;
-      let structured;
-      try {
-        structured = JSON.parse(finalText);
-      } catch {
-        structured = undefined;
-      }
-      if (!structured || typeof structured !== 'object' || Array.isArray(structured)) {
-        out.push(failure('the run produced no structured answer'));
+      const outcome = decoder.end(0);
+      if (outcome.status !== 'ok') {
+        out.push(failure(outcome.message, outcome.reason));
         return out;
       }
       out.push({
         type: 'result',
         isError: false,
         deterministic: false,
-        structured,
-        text: typeof structured.text === 'string' ? structured.text : finalText,
-        numTurns: null,
-        costUsd: null,
+        structured: outcome.final,
+        text: typeof outcome.final.text === 'string' ? outcome.final.text : outcome.text,
+        numTurns: outcome.numTurns,
+        costUsd: outcome.costUsd,
         tokens: runTokens(usage, model),
       });
     }
@@ -242,9 +270,11 @@ function createDecoder(spec) {
 }
 
 module.exports = {
+  features,
+  newRunDir,
+  sweepRunDirs,
   RUN_DIR,
-  WORK_DIR,
-  SCHEMA_FILE,
+  RUN_DIR_MAX_AGE_MS,
   HA_TOOL_PREFIX,
   toolName,
   toolBasename,

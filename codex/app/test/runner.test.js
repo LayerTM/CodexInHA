@@ -109,3 +109,43 @@ test('without a model the tokens are reported under an unknown one', () => {
   );
   assert.deepEqual(runner.runTokens(null, 'gpt-6-astra'), []);
 });
+
+test('a policy violation is not offered to the core as a retryable error', () => {
+  const decode = runner.createDecoder(spec());
+  const [result] = events(decode, [
+    { type: 'item.completed', item: { id: 'c1', type: 'command_execution', command: 'ls' } },
+  ]);
+  assert.equal(result.type, 'result');
+  assert.equal(result.isError, true);
+  // The same request would try the same thing again, so it is not re-run.
+  assert.equal(result.deterministic, true);
+});
+
+test('a turn that fails in the model is offered as a retryable error', () => {
+  const decode = runner.createDecoder(spec());
+  const [result] = events(decode, [{ type: 'turn.failed', error: { message: 'overloaded' } }]);
+  assert.equal(result.deterministic, false);
+});
+
+test('every run gets a directory of its own, and old ones are swept', () => {
+  const fs = require('node:fs');
+  const os = require('node:os');
+  const path = require('node:path');
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'codex-runs-'));
+  const a = runner.newRunDir(root);
+  const b = runner.newRunDir(root);
+  try {
+    assert.notEqual(a, b);
+    assert.ok(fs.existsSync(path.join(a, 'work')));
+    assert.ok(fs.existsSync(path.join(b, 'work')));
+    // A directory still in use is never removed by another run's sweep.
+    runner.sweepRunDirs(Date.now(), root);
+    assert.ok(fs.existsSync(a));
+    // One nothing has written to for longer than the limit is.
+    runner.sweepRunDirs(Date.now() + runner.RUN_DIR_MAX_AGE_MS + 1000, root);
+    assert.ok(!fs.existsSync(a));
+    assert.ok(!fs.existsSync(b));
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+});

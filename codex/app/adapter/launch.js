@@ -103,13 +103,14 @@ function hasControl(text) {
   return false;
 }
 
-// A TOML basic string. JSON string escapes are a subset of TOML's; control
-// characters are refused rather than escaped because no value here has any.
+// A TOML basic string. JSON string escapes are a subset of TOML's, and it
+// escapes every character below 0x20 — but not DELETE, which TOML does not
+// allow raw, so that one is escaped here. This text comes from an automation
+// somebody already saved; refusing the whole request over one character it
+// happens to contain would be the wrong answer.
 function tomlString(value) {
-  if (typeof value !== 'string' || hasControl(value)) {
-    throw new Error('configuration value must be text without control characters');
-  }
-  return JSON.stringify(value);
+  if (typeof value !== 'string') throw new Error('configuration value must be text');
+  return JSON.stringify(value).replace(/\u007f/g, '\\u007F');
 }
 
 function tomlStringArray(values) {
@@ -127,6 +128,54 @@ function checkAbsolute(label, file) {
     throw new Error(`${label}: an absolute path is required`);
   }
   return file;
+}
+
+/**
+ * The restricted profile, declared ONCE: nothing of the user's configuration,
+ * rules or instructions, no approval, no web, no update check, no project docs,
+ * a read-only sandbox, and every feature that still exists switched off.
+ *
+ * Every restricted run of this add-on is built from this one list — the
+ * prompt-API run below and the one-shot question `agent-ask` asks for the
+ * health check and the morning briefing. They used to declare their own
+ * denials, and a feature added to one was missed by the other.
+ *
+ * @param {Array<{name: string, stage: string}>} features  parsed `codex features list`
+ * @param {string} workDir  the empty, private directory the run starts in
+ */
+function restrictedArgv(features, workDir) {
+  return [
+    'exec',
+    '--json',
+    '--ephemeral',
+    '--skip-git-repo-check',
+    '--ignore-user-config',
+    '--ignore-rules',
+    '--strict-config',
+    '--color', 'never',
+    '--sandbox', 'read-only',
+    '-c', 'approval_policy="never"',
+    '-c', 'web_search="disabled"',
+    '-c', 'check_for_update_on_startup=false',
+    '-c', 'project_doc_max_bytes=0',
+    ...promptFeatureArgs(features),
+    '--cd', checkAbsolute('work directory', workDir),
+  ];
+}
+
+/**
+ * The argv of the one-shot question: the same restricted profile, with no
+ * schema, no image and no Home Assistant server at all. The prompt arrives on
+ * stdin; the caller strips the Home Assistant credentials from the environment.
+ *
+ * @param {{features: Array<{name: string, stage: string}>, workDir: string, model?: string}} p
+ */
+function askLaunch(p) {
+  const argv = restrictedArgv(p.features, p.workDir);
+  const model = checkModel(p.model);
+  if (model) argv.push('--model', model);
+  argv.push('-');
+  return { argv, cwd: p.workDir, env: {} };
 }
 
 /**
@@ -150,21 +199,7 @@ function promptLaunch(p) {
   const schemaFile = checkAbsolute('schema file', p.schemaFile);
   const model = checkModel(p.model);
   const argv = [
-    'exec',
-    '--json',
-    '--ephemeral',
-    '--skip-git-repo-check',
-    '--ignore-user-config',
-    '--ignore-rules',
-    '--strict-config',
-    '--color', 'never',
-    '--sandbox', 'read-only',
-    '-c', 'approval_policy="never"',
-    '-c', 'web_search="disabled"',
-    '-c', 'check_for_update_on_startup=false',
-    '-c', 'project_doc_max_bytes=0',
-    ...promptFeatureArgs(p.features),
-    '--cd', workDir,
+    ...restrictedArgv(p.features, workDir),
     '--output-schema', schemaFile,
   ];
   if (model) argv.push('--model', model);
@@ -269,6 +304,8 @@ function consoleArgs(options) {
 
 module.exports = {
   KEEP_FEATURES,
+  restrictedArgv,
+  askLaunch,
   NEVER_KEEP,
   HA_SERVER,
   HA_TOKEN_ENV,

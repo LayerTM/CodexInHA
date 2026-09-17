@@ -146,7 +146,9 @@ test('values that could change the configuration are refused', () => {
   assert.throws(() => launch({ schemaFile: '/x\n/y' }), /absolute/);
   assert.throws(() => launch({ imageFile: 'snap.jpg' }), /absolute/);
   assert.throws(() => launch({ mode: 'console' }), /read or write/);
-  assert.throws(() => L.tomlString(`a${String.fromCharCode(0)}b`), /control/);
+  // A control character is escaped, not refused: it arrives in text somebody
+  // already saved, and one character may not fail the whole request.
+  assert.equal(L.tomlString(`a${String.fromCharCode(0)}b`), '"a\\u0000b"');
 });
 
 test('model and image are passed as their own arguments', () => {
@@ -220,4 +222,47 @@ test('the console is unrestricted: bypass when asked, then the extra arguments a
   assert.deepEqual(L.consoleArgs({ bypass_permissions: /** @type {any} */ ('true') }), []);
   assert.deepEqual(L.consoleArgs(undefined), []);
   assert.equal(L.BYPASS_FLAG, '--dangerously-bypass-approvals-and-sandbox');
+});
+
+// The one-shot question the health check and the morning briefing ask is built
+// from the same profile as a prompt run. It used to carry its own short list of
+// switches, which missed seventeen of the features this one denies.
+test('the one-shot question denies everything a prompt run denies', () => {
+  const ask = L.askLaunch({ features: FEATURES, workDir: '/tmp/ask' });
+  const prompt = L.promptLaunch({
+    mode: 'read', features: FEATURES, workDir: '/tmp/ask', schemaFile: '/tmp/s.json',
+  });
+  assert.deepEqual(disabled(ask.argv), disabled(prompt.argv));
+  // Only a feature this CLI still has can be switched off: an unknown name is a
+  // startup error, so a name the list no longer carries is not passed at all,
+  // and a deprecated switch that is already off is left alone.
+  const present = new Set(FEATURES
+    .filter((f) => f.stage !== 'removed' && !(f.stage === 'deprecated' && !f.enabled))
+    .map((f) => f.name));
+  for (const name of L.NEVER_KEEP) {
+    if (present.has(name)) assert.ok(disabled(ask.argv).includes(name), `${name} must be disabled`);
+  }
+});
+
+test('the one-shot question carries no schema, no image and no Home Assistant server', () => {
+  const { argv } = L.askLaunch({ features: FEATURES, workDir: '/tmp/ask' });
+  assert.ok(!argv.includes('--output-schema'));
+  assert.ok(!argv.includes('--image'));
+  assert.ok(!argv.some((a) => a.startsWith('mcp_servers.')));
+  // The prompt arrives on stdin, never as an argument.
+  assert.equal(argv[argv.length - 1], '-');
+  assert.deepEqual(L.askLaunch({ features: FEATURES, workDir: '/tmp/ask' }).env, {});
+});
+
+test('both restricted profiles start in the directory they are given', () => {
+  assert.throws(() => L.askLaunch({ features: FEATURES, workDir: 'relative' }), /absolute path/);
+  const { argv } = L.askLaunch({ features: FEATURES, workDir: '/tmp/ask' });
+  assert.equal(argv[argv.indexOf('--cd') + 1], '/tmp/ask');
+});
+
+test('a DELETE character in saved text is escaped, not refused', () => {
+  const text = `before${String.fromCharCode(127)}after`;
+  assert.equal(L.tomlString(text), '"before\\u007Fafter"');
+  assert.equal(L.tomlString('a\nb'), '"a\\nb"');
+  assert.throws(() => L.tomlString(7), /must be text/);
 });
