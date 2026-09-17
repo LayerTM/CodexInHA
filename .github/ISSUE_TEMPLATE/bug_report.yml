@@ -1,0 +1,35 @@
+name: Bug report
+description: Report a problem with the Codex add-on.
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Please do **not** paste your OpenAI API key, ChatGPT login data, Home
+        Assistant access tokens or any other secret. Remove them from logs first.
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened
+      description: What you did, what you expected, and what happened instead.
+    validations:
+      required: true
+  - type: input
+    id: addon_version
+    attributes:
+      label: Add-on version
+    validations:
+      required: true
+  - type: input
+    id: ha_version
+    attributes:
+      label: Home Assistant version
+      placeholder: "2026.9.0"
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: Add-on log
+      description: The relevant part of the add-on log, with private values removed.
+      render: shell

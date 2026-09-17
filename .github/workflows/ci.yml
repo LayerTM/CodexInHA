@@ -1,0 +1,42 @@
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  secret-scan:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.14"
+      - name: Self-test the scanner
+        working-directory: .github/scripts
+        run: python test_secret_scan.py
+      - name: Scan tracked files for secrets and personal data
+        run: python .github/scripts/secret_scan.py .
+
+  # A repository is copied onto machines nothing like the one it was written on.
+  # An absolute home or temporary path, a symlink pointing outside the clone, a
+  # link to an authoring transcript or an attribution trailer left in a tracked
+  # file all work on exactly one computer and are dead everywhere else.
+  hygiene:
+    name: Repository hygiene
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.14"
+      - name: Self-test the scanner
+        working-directory: .github/scripts
+        run: python test_hygiene_scan.py
+      - name: Scan tracked files for traces of one machine
+        run: python .github/scripts/hygiene_scan.py .
