@@ -94,7 +94,7 @@ function createDecoder({ allowedTools, basename, haServer = HA_SERVER }) {
     finalText: null,
     usage: null,
     warnings: [],
-    toolCalls: new Map(), // item id -> { server, tool, status, error }
+    toolCalls: new Map(), // item id -> { server, published, tool, status, error }
   };
 
   function fail(reason, message) {
@@ -213,7 +213,10 @@ function createDecoder({ allowedTools, basename, haServer = HA_SERVER }) {
       threadId: state.threadId,
       text: state.finalText,
       final: null,
-      toolCalls: calls.map((c) => ({ server: c.server, tool: c.tool, status: c.status, error: c.error })),
+      // `published` is the wire name the server actually used; `tool` is the
+      // basename the add-on speaks. Two HA namespaces share a basename, so a
+      // record without `published` cannot say which one answered.
+      toolCalls: calls.map((c) => ({ server: c.server, published: c.published, tool: c.tool, status: c.status, error: c.error })),
       toolsUsed: calls.filter((c) => c.status === 'completed').map((c) => c.tool),
       mcpFailed: calls.some((c) => c.status !== 'completed'),
       usage: state.usage,
