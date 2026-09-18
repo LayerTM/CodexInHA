@@ -42,6 +42,8 @@ jobs:
   # The command the pull-request template asks a contributor to run, run exactly
   # as it is written there. A test that quietly grows a dependency on the
   # assembled tree would still pass the job above and leave that line a lie.
+  # A test that needs the core declares it by living in `test/assembled/`, which
+  # this command does not reach and the job above does.
   tests-bare:
     name: Tests in a plain checkout
     runs-on: ubuntu-latest
@@ -52,7 +54,7 @@ jobs:
           node-version: "26"
       - name: The add-on's own tests, with nothing installed
         working-directory: codex/app
-        run: node --test test/
+        run: node --test test/*.test.js
 
   lint-js:
     name: JS lint & types
