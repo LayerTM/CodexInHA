@@ -161,14 +161,16 @@ test('write mode uses the same restrictions as read mode', () => {
   assert.deepEqual(launch({ mode: 'write' }).argv, launch().argv);
 });
 
-test('the Home Assistant server gets exactly the allowed tools and the token only in the environment', () => {
+test('the Home Assistant server is registered with the token only in the environment', () => {
   const { argv, env } = launch({ mode: 'write', ha: { ...HA, tools: ['HassTurnOn', 'GetLiveContext', 'HassTurnOn'] } });
   assert.deepEqual(configs(argv).slice(4), [
     'mcp_servers.ha.url="http://127.0.0.1:8099/mcp"',
     'mcp_servers.ha.bearer_token_env_var="CODEX_HA_MCP_TOKEN"',
-    'mcp_servers.ha.enabled_tools=["HassTurnOn","GetLiveContext"]',
     'mcp_servers.ha.default_tools_approval_mode="approve"',
   ]);
+  // No second list of tool names: naming them here means predicting how the
+  // server spells them, and the run's allowlist lives with the relay.
+  assert.ok(!argv.some((a) => a.includes('enabled_tools')));
   assert.deepEqual(env, { CODEX_HA_MCP_TOKEN: 'secret-token-value' });
   assert.ok(!argv.some((a) => a.includes('secret-token-value')));
   assert.equal(argv.at(-1), '-');

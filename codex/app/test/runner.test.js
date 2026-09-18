@@ -21,7 +21,21 @@ const events = (decode, list) => list.flatMap((ev) => decode(ev));
 test('a Home Assistant tool keeps one name in both directions', () => {
   assert.equal(runner.toolName('HassTurnOn'), 'ha__HassTurnOn');
   assert.equal(runner.toolBasename('ha__HassTurnOn'), 'HassTurnOn');
+  // Home Assistant namespaces a tool by the API it comes from, and the name the
+  // server publishes is the one the CLI reports back. Every prefix the sandbox
+  // server published on 2026-09-18 reduces to the basename the core pins.
+  for (const [published, basename] of [
+    ['homeassistant__GetLiveContext', 'GetLiveContext'],
+    ['intent__HassTurnOn', 'HassTurnOn'],
+    ['todo__get_items', 'get_items'],
+    ['media_player__HassSetVolume', 'HassSetVolume'],
+    ['assist_satellite__HassBroadcast', 'HassBroadcast'],
+    ['llm__GetDateTime', 'GetDateTime'],
+  ]) {
+    assert.equal(runner.toolBasename(`ha__${published}`), basename, published);
+  }
   assert.equal(runner.toolBasename('ha__'), null);
+  assert.equal(runner.toolBasename('ha__intent__'), null, 'a namespace with no tool after it');
   assert.equal(runner.toolBasename('shell'), null);
   assert.equal(runner.toolBasename(42), null);
 });

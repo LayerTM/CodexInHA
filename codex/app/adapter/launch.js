@@ -150,10 +150,6 @@ function tomlString(value) {
   return JSON.stringify(value).replace(/\u007f/g, '\\u007F');
 }
 
-function tomlStringArray(values) {
-  return `[${values.map(tomlString).join(',')}]`;
-}
-
 function checkModel(model) {
   if (model === undefined || model === null || model === '') return '';
   if (typeof model !== 'string' || !MODEL_RE.test(model)) throw new Error('model: invalid name');
@@ -253,10 +249,18 @@ function promptLaunch(p) {
       if (typeof t !== 'string' || !TOOL_RE.test(t)) throw new Error('ha: invalid tool name');
     }
     const key = `mcp_servers.${HA_SERVER}`;
+    // No `enabled_tools`: what this run may call is decided by the core's relay,
+    // which holds the run's bearer and the Home Assistant basenames it was
+    // minted with, and refuses anything else whatever the command line says.
+    // A second list here would have to name tools as the SERVER publishes them
+    // — and Home Assistant namespaces each tool by the API it comes from
+    // (`intent__HassTurnOn`, `todo__get_items`, `homeassistant__GetLiveContext`;
+    // six different prefixes in one server, measured 2026-09-18). Predicting
+    // those names is what hid every tool from the model: the filter matched
+    // nothing, so the model was offered nothing.
     argv.push(
       '-c', `${key}.url=${tomlString(ha.url)}`,
       '-c', `${key}.bearer_token_env_var=${tomlString(HA_TOKEN_ENV)}`,
-      '-c', `${key}.enabled_tools=${tomlStringArray(tools)}`,
       '-c', `${key}.default_tools_approval_mode="approve"`,
     );
     env[HA_TOKEN_ENV] = ha.token;
