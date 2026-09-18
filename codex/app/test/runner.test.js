@@ -127,7 +127,7 @@ test('a turn that fails in the model is offered as a retryable error', () => {
   assert.equal(result.deterministic, false);
 });
 
-test('every run gets a directory of its own, and old ones are swept', () => {
+test('every run gets a directory of its own, and a live one is never swept', () => {
   const fs = require('node:fs');
   const os = require('node:os');
   const path = require('node:path');
@@ -138,14 +138,65 @@ test('every run gets a directory of its own, and old ones are swept', () => {
     assert.notEqual(a, b);
     assert.ok(fs.existsSync(path.join(a, 'work')));
     assert.ok(fs.existsSync(path.join(b, 'work')));
-    // A directory still in use is never removed by another run's sweep.
-    runner.sweepRunDirs(Date.now(), root);
+    // Both belong to this process and are in use: no sweep may take them,
+    // however long the runs last. Age is not consulted at all.
+    assert.deepEqual(runner.sweepRunDirs(root), []);
     assert.ok(fs.existsSync(a));
-    // One nothing has written to for longer than the limit is.
-    runner.sweepRunDirs(Date.now() + runner.RUN_DIR_MAX_AGE_MS + 1000, root);
+    assert.ok(fs.existsSync(b));
+    // The run that owned it has ended.
+    runner.releaseRunDir(a);
     assert.ok(!fs.existsSync(a));
-    assert.ok(!fs.existsSync(b));
+    assert.ok(fs.existsSync(b));
   } finally {
     fs.rmSync(root, { recursive: true, force: true });
   }
+});
+
+test('a directory left behind by a process that died is swept', () => {
+  const fs = require('node:fs');
+  const os = require('node:os');
+  const path = require('node:path');
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'codex-runs-'));
+  try {
+    // As another process would leave it: an owner file naming a pid, and no
+    // entry in this process's live set.
+    const dead = path.join(root, 'run-dead');
+    const alive = path.join(root, 'run-alive');
+    for (const dir of [dead, alive]) fs.mkdirSync(path.join(dir, 'work'), { recursive: true });
+    fs.writeFileSync(path.join(dead, runner.OWNER_FILE), '4242\n');
+    fs.writeFileSync(path.join(alive, runner.OWNER_FILE), '4243\n');
+    const orphan = path.join(root, 'run-no-owner');
+    fs.mkdirSync(orphan);
+
+    const killFn = (pid) => {
+      if (pid === 4243) return true;
+      const err = new Error('no such process');
+      err.code = 'ESRCH';
+      throw err;
+    };
+    const removed = runner.sweepRunDirs(root, { killFn });
+    assert.deepEqual(removed.sort(), [dead, orphan].sort());
+    assert.ok(fs.existsSync(alive), 'a directory whose owner still runs is kept');
+    assert.ok(!fs.existsSync(dead));
+    assert.ok(!fs.existsSync(orphan), 'a directory with no owner is nobody\'s live run');
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test('a process that exists but belongs to somebody else counts as alive', () => {
+  const eperm = (_pid) => {
+    const err = new Error('operation not permitted');
+    err.code = 'EPERM';
+    throw err;
+  };
+  assert.equal(runner.processAlive(4242, eperm), true);
+  const gone = (_pid) => {
+    const err = new Error('no such process');
+    err.code = 'ESRCH';
+    throw err;
+  };
+  assert.equal(runner.processAlive(4242, gone), false);
+  assert.equal(runner.processAlive(NaN, gone), false);
+  assert.equal(runner.processAlive(0, gone), false);
 });
