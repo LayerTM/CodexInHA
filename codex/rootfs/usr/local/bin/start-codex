@@ -27,7 +27,16 @@ fi
 build_default_args() {
     codex_args=()
     if bashio::config.true 'bypass_permissions'; then
+        # Implies the boundary below, and drops the approval prompts as well.
         codex_args+=(--dangerously-bypass-approvals-and-sandbox)
+    else
+        # The container is the boundary: the CLI's Linux sandbox is bubblewrap,
+        # and an add-on container may not create the user namespace it needs, so
+        # asking for it only produces a warning at every start. Approvals stay on
+        # in this mode — that is what the option switches. The same declaration
+        # for a prompt run is app/adapter/launch.js (SANDBOX_ARGS), and a test
+        # holds the two to the same words.
+        codex_args+=(--sandbox danger-full-access)
     fi
     local model
     model=$(bashio::config 'model')

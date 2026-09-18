@@ -21,6 +21,9 @@ configuration:
       commands, editing files, or taking other actions.
       Only enable this if you fully trust Codex's decisions.
       Corresponds to the --dangerously-bypass-approvals-and-sandbox flag.
+      What bounds Codex either way is the add-on container: the CLI's own
+      sandbox is not used in either setting, because an add-on container is not
+      allowed to create one. This option decides the approval prompts.
   auto_update:
     name: Auto-Update Codex
     description: >-

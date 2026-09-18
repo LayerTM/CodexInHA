@@ -90,7 +90,7 @@ test('the prompt profile carries every restricting switch', () => {
   for (const flag of ['--json', '--ephemeral', '--skip-git-repo-check', '--ignore-user-config', '--ignore-rules', '--strict-config']) {
     assert.ok(argv.includes(flag), flag);
   }
-  assert.equal(argv[argv.indexOf('--sandbox') + 1], 'read-only');
+  assert.deepEqual(argv.slice(argv.indexOf('--sandbox'), argv.indexOf('--sandbox') + 2), L.SANDBOX_ARGS);
   assert.equal(argv[argv.indexOf('--cd') + 1], '/run/prompt/w1');
   assert.equal(argv[argv.indexOf('--output-schema') + 1], '/run/prompt/schema.json');
   assert.deepEqual(configs(argv), [
@@ -103,7 +103,49 @@ test('the prompt profile carries every restricting switch', () => {
   assert.equal(argv.at(-1), '-', 'the request text comes from stdin');
   assert.equal(cwd, '/run/prompt/w1');
   assert.deepEqual(env, {});
-  assert.ok(!argv.some((a) => /bypass|yolo|danger/i.test(a)));
+  // The run carries no approval bypass and no permission switch of its own: the
+  // one thing it says about the sandbox is the boundary it really has.
+  assert.ok(!argv.includes(L.BYPASS_FLAG));
+  assert.ok(!argv.some((a) => /yolo|--full-auto|--approve-for-me|bypass/i.test(a)));
+});
+
+// The whole point of the container-as-boundary form is that it replaces ONE
+// switch. A later edit that drops a denial with it would leave a prompt run
+// reading the user's configuration or running commands, and nothing else here
+// would notice.
+test('dropping the CLI sandbox drops nothing else', () => {
+  const { argv } = launch();
+  assert.ok(!argv.includes('read-only'), 'no sandbox the container cannot build');
+  assert.ok(!argv.includes('workspace-write'), 'no sandbox the container cannot build');
+  assert.deepEqual(L.SANDBOX_ARGS, ['--sandbox', 'danger-full-access']);
+  for (const flag of ['--ephemeral', '--skip-git-repo-check', '--ignore-user-config',
+    '--ignore-rules', '--strict-config']) assert.ok(argv.includes(flag), flag);
+  assert.deepEqual(configs(argv), [
+    'approval_policy="never"',
+    'web_search="disabled"',
+    'check_for_update_on_startup=false',
+    'project_doc_max_bytes=0',
+  ]);
+  const off = disabled(argv);
+  // A feature the CLI has removed, or a deprecated one already off by default,
+  // is not switched off again — the profile says so and warns otherwise.
+  const present = FEATURES.filter((f) => L.NEVER_KEEP.has(f.name) && f.stage !== 'removed'
+    && !(f.stage === 'deprecated' && !f.enabled));
+  assert.ok(present.length >= 15, 'the fixture still names the features a prompt run denies');
+  for (const f of present) assert.ok(off.includes(f.name), `${f.name} stays disabled`);
+  for (const name of ['shell_tool', 'unified_exec', 'apps']) assert.ok(off.includes(name), name);
+  assert.deepEqual(L.askLaunch({ features: FEATURES, workDir: '/tmp/ask' }).argv
+    .slice(0, 2), ['exec', '--json'], 'the one-shot question uses the same profile');
+});
+
+// The console is launched by a shell script, not by this module, so the two say
+// the same words or the console keeps asking for a sandbox it cannot have.
+test('the console launcher declares the same boundary', () => {
+  const script = fs.readFileSync(
+    path.join(__dirname, '..', '..', 'rootfs', 'usr', 'local', 'bin', 'start-codex'), 'utf8',
+  );
+  assert.ok(script.includes(L.SANDBOX_ARGS.join(' ')), 'the boundary, in the console launcher');
+  assert.ok(script.includes(L.BYPASS_FLAG), 'the bypass option, in the console launcher');
 });
 
 test('write mode uses the same restrictions as read mode', () => {
@@ -218,9 +260,10 @@ test('the prompt home is never the console home', () => {
 test('the console is unrestricted: bypass when asked, then the extra arguments as given', () => {
   assert.deepEqual(L.consoleArgs({ bypass_permissions: true, extra_args: ['--search', '-m', 'gpt-5.5'] }),
     [L.BYPASS_FLAG, '--search', '-m', 'gpt-5.5']);
-  assert.deepEqual(L.consoleArgs({ bypass_permissions: false, extra_args: ['-c', 'x=1', '', 5, null] }), ['-c', 'x=1']);
-  assert.deepEqual(L.consoleArgs({ bypass_permissions: /** @type {any} */ ('true') }), []);
-  assert.deepEqual(L.consoleArgs(undefined), []);
+  assert.deepEqual(L.consoleArgs({ bypass_permissions: false, extra_args: ['-c', 'x=1', '', 5, null] }),
+    [...L.SANDBOX_ARGS, '-c', 'x=1']);
+  assert.deepEqual(L.consoleArgs({ bypass_permissions: /** @type {any} */ ('true') }), L.SANDBOX_ARGS);
+  assert.deepEqual(L.consoleArgs(undefined), L.SANDBOX_ARGS);
   assert.equal(L.BYPASS_FLAG, '--dangerously-bypass-approvals-and-sandbox');
 });
 

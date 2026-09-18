@@ -22,6 +22,22 @@ const path = require('node:path');
 
 const PROMPT_MODES = new Set(['read', 'write']);
 
+// What bounds a run, declared once for every profile in this file.
+//
+// In a Home Assistant add-on the container IS the boundary: the CLI's own Linux
+// sandbox is bubblewrap, and bubblewrap needs a user namespace the add-on's
+// container is not allowed to create — measured on both architectures inside a
+// real add-on ("No permissions to create a new namespace" on amd64, "Permission
+// denied" on aarch64). Asking for that sandbox therefore buys no containment and
+// costs a warning at every start: the CLI reports that bubblewrap is not on PATH
+// and falls back to a bundled copy that cannot run either. So the add-on says
+// what is true — the boundary is the container, the private working directory
+// and the denials below — instead of asking the engine for a second one.
+//
+// This is the same statement the Claude add-on makes in one line of its image.
+const SANDBOX_ARGS = ['--sandbox', 'danger-full-access'];
+
+
 // Features a prompt run keeps at their built-in default. Each one is here
 // because a prompt run is measured to need it; nothing else is kept.
 //
@@ -31,7 +47,10 @@ const PROMPT_MODES = new Set(['read', 'write']);
 // reach the network or call a tool outside enabled_tools, every attempt failed
 // and nothing reached the disk or the network. Tools the host still lists
 // (apply_patch, spawn_agent) are refused by the read-only sandbox and by the
-// ephemeral session respectively.
+// ephemeral session respectively — spawn_agent by the ephemeral session, and
+// apply_patch by the host itself, which refuses a tool outside the request's
+// enabled_tools. The CLI's own sandbox is no longer one of those refusals: in a
+// Home Assistant add-on it cannot be built at all (see SANDBOX_ARGS).
 const KEEP_FEATURES = new Set(['code_mode_host']);
 
 // Features that must be off in every prompt run whatever KEEP_FEATURES says:
@@ -153,7 +172,7 @@ function restrictedArgv(features, workDir) {
     '--ignore-rules',
     '--strict-config',
     '--color', 'never',
-    '--sandbox', 'read-only',
+    ...SANDBOX_ARGS,
     '-c', 'approval_policy="never"',
     '-c', 'web_search="disabled"',
     '-c', 'check_for_update_on_startup=false',
@@ -290,11 +309,17 @@ const BYPASS_FLAG = '--dangerously-bypass-approvals-and-sandbox';
  * The argv (without the executable) of the interactive console session.
  * Unrestricted by design: the owner's own session, like the Claude console.
  *
+ * Either way the console states the boundary it actually has: with the bypass
+ * flag, which implies it, and without it through SANDBOX_ARGS — so neither mode
+ * asks for a sandbox this container cannot build. The bypass option still means
+ * what it says: it is what drops the approval prompts.
+ *
  * @param {{bypass_permissions?: boolean, extra_args?: unknown}} options  add-on options
  */
 function consoleArgs(options) {
   const args = [];
   if (options && options.bypass_permissions === true) args.push(BYPASS_FLAG);
+  else args.push(...SANDBOX_ARGS);
   const extra = options && Array.isArray(options.extra_args) ? options.extra_args : [];
   for (const a of extra) {
     if (typeof a === 'string' && a !== '') args.push(a);
@@ -305,6 +330,7 @@ function consoleArgs(options) {
 module.exports = {
   KEEP_FEATURES,
   restrictedArgv,
+  SANDBOX_ARGS,
   askLaunch,
   NEVER_KEEP,
   HA_SERVER,
