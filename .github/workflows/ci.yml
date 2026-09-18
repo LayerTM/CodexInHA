@@ -113,6 +113,25 @@ jobs:
       - name: This repository is a valid add-on store
         run: python .github/scripts/store_repository_check.py .
 
+  # The Configuration tab is generated from the option schema and labelled from
+  # the translations. An option no language names is shown to the user as its raw
+  # key — visible to everyone who configures the add-on, and to no check until now.
+  translations:
+    name: Every option is explained
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.14"
+      - name: Install the YAML reader
+        run: pip install --disable-pip-version-check PyYAML==6.0.3
+      - name: Self-test the check
+        working-directory: .github/scripts
+        run: python test_translations_check.py
+      - name: Every option is named and described in every language
+        run: python .github/scripts/translations_check.py codex
+
   addon-linter:
     name: Add-on linter
     runs-on: ubuntu-latest

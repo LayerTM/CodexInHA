@@ -1,13 +1,16 @@
 # Codex — Home Assistant Add-on
 
-Runs the full [Codex CLI](https://github.com/openai/codex) inside Home Assistant, presented as a web console in the sidebar. Codex has direct access to your HA configuration and APIs: it can create automations, debug integrations, run shell commands, and manage your setup through conversation.
+Runs the full [Codex CLI](https://github.com/openai/codex) inside Home Assistant, presented as a web console you open from the add-on page — or from the sidebar, once you put it there (step 3 below). Codex has direct access to your HA configuration and APIs: it can create automations, debug integrations, run shell commands, and manage your setup through conversation.
 
 ## Installation
 
 1. **Settings → Add-ons → Add-on Store** → ⋮ → **Repositories** → add
    `https://github.com/LayerTM/CodexInHA`
 2. Install **Codex** and start it.
-3. Open the **Codex** sidebar panel.
+3. Open it with **Open Web UI** on the add-on page. For a **Codex** entry in the
+   sidebar, turn on **Show in sidebar** there: Home Assistant leaves that switch
+   off for every add-on it installs, whatever the add-on asks for, so the panel
+   appears only once you turn it on.
 
 ## Authentication (pick one)
 
@@ -117,7 +120,7 @@ It watches for:
 - **Temperature out of band** (`alert_temp_enabled`, off by default) — a `temperature` sensor below `alert_temp_low` (5) or above `alert_temp_high` (45). Off by default because sensible bands vary. By default it checks **every** `temperature` sensor — including device temperatures (a NAS or switch CPU running at 45–75°), which would false-trigger. Set `alert_temp_entities` to a list of just your **room** temperature sensors to scope the check to those (see below).
 - **High CO2** (`alert_co2_above`, default 1400 ppm; 0 = off) — any `carbon_dioxide` sensor reading above the threshold, so you know when a room needs airing out. Non-critical (held back during quiet hours).
 - **Humidity out of band** (`alert_humidity_enabled`, off by default) — a `humidity` sensor below `alert_humidity_low` (25%) or above `alert_humidity_high` (70%), so you catch a damp bathroom/cellar or over-dry room. Non-critical (held back during quiet hours).
-- **Offline / network** (`alert_offline`, on) — any entity you list in `alert_offline_entities` that reports `unavailable`/`unknown`, or (for a `device_tracker`) `not_home`. **Critical**: always sent, even during quiet hours. Defaults to watching your internet gateway (`device_tracker.ucg_fiber`), so "the internet/router is down" is caught out of the box.
+- **Offline / network** (`alert_offline`, on) — any entity you list in `alert_offline_entities` that reports `unavailable`/`unknown`, or (for a `device_tracker`) `not_home`. **Critical**: always sent, even during quiet hours. The list starts **empty**, so this check watches nothing until you name an entity — add your internet gateway's `device_tracker` to be told when the connection drops.
 
 **Dedupe:** you are notified only when an entity *newly* enters an anomaly. A
 still-open door won't re-notify every cycle — the active anomalies are remembered
@@ -160,7 +163,7 @@ drops off — your NAS, a camera, a second router — add its `entity_id` to
 
 ```yaml
 alert_offline_entities:
-  - device_tracker.ucg_fiber   # your internet gateway (the default)
+  - device_tracker.my_gateway  # your internet gateway
   - sensor.nas_status
   - camera.front_door
 ```
@@ -171,10 +174,9 @@ Any listed entity that reports `unavailable` or `unknown` — or, for a
 camera) — avoid a person's phone tracker, or you'll get an *Offline* alert every
 time they leave home. **To remove** a watched device, delete its line (keep the gateway if you still want
 internet-down detection, or set `alert_offline: false` to switch the whole check
-off). Setting `alert_offline_entities: []` (an explicit empty list) while leaving
-`alert_offline: true` watches **nothing** — an explicit way to disable offline
-alerts without turning `alert_offline` off (an *absent* list, by contrast, falls
-back to watching the default gateway). Changes take effect after you save the options
+off). An empty list — which is how the add-on starts — leaves `alert_offline: true`
+watching **nothing**, so the check costs you nothing until you fill it in.
+Changes take effect after you save the options
 and restart the add-on — the alerts loop reads its options when it starts.
 
 **Scoping the temperature check.** The temperature alert checks every
@@ -266,6 +268,7 @@ behind the Prompt API, so the integration can adapt to it:
 
 | field | meaning |
 |---|---|
+| `ready` | `true` only when the CLI is installed **and** a sign-in or API key exists. A freshly installed add-on reports `false` until you sign in — that is the normal state between installing and `codex login`, not a fault |
 | `engine` | the agent's stable name; `codex` for this add-on |
 | `engine_version` | the agent's version, as `codex --version` reports it; empty until it has been read |
 | `request_fields` | the request fields `POST /api/prompt` accepts; a field not listed is refused |
