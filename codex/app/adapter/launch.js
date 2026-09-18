@@ -266,9 +266,20 @@ function promptLaunch(p) {
   return { argv, cwd: workDir, env };
 }
 
-// Files the CLI reads from CODEX_HOME whatever the command line says: global
-// instructions and the user's configuration.
-const HOME_INSTRUCTION_FILES = ['AGENTS.md', 'AGENTS.override.md', 'config.toml'];
+// Instructions the CLI reads from CODEX_HOME whatever the command line says.
+// Nothing writes one by itself, so one in the prompt home was put there by a
+// person, and the run must not start.
+const HOME_INSTRUCTION_FILES = ['AGENTS.md', 'AGENTS.override.md'];
+
+// The CLI's own configuration file, which it WRITES into CODEX_HOME on its own:
+// a run records a `[projects."<work dir>"] trust_level` entry for the directory
+// it was started in. That is the CLI's bookkeeping about a directory this
+// add-on made and deletes, not the user's settings — those live in the console
+// home, which a prompt run never reads. So it is removed before every run
+// instead of refused. Measured 2026-09-18 in the sandbox on 0.1.0 with CLI
+// 0.155.0: the first spawn of a request wrote the file and the next one was
+// refused with `config.toml must not exist`, so not one question was answered.
+const HOME_STATE_FILES = ['config.toml'];
 
 /**
  * Makes `promptHome` the CODEX_HOME of prompt runs.
@@ -279,8 +290,9 @@ const HOME_INSTRUCTION_FILES = ['AGENTS.md', 'AGENTS.override.md', 'config.toml'
  * console's login. The CLI writes a refreshed login by opening auth.json for
  * writing, which follows the link, so both homes keep one login.
  *
- * Throws, and the run must not start, when the home holds anything that would
- * be read as instructions or configuration.
+ * The CLI's own `config.toml` is removed here, because the CLI writes one into
+ * its home by itself; the run must not start when the home holds instructions,
+ * which only a person puts there.
  */
 function preparePromptHome(consoleHome, promptHome) {
   checkAbsolute('console home', consoleHome);
@@ -304,6 +316,9 @@ function preparePromptHome(consoleHome, promptHome) {
   if (current !== target) {
     if (current !== null) fs.unlinkSync(link);
     fs.symlinkSync(target, link);
+  }
+  for (const name of HOME_STATE_FILES) {
+    fs.rmSync(path.join(promptHome, name), { force: true, recursive: true });
   }
   for (const name of HOME_INSTRUCTION_FILES) {
     if (fs.existsSync(path.join(promptHome, name)) || isLink(path.join(promptHome, name))) {
