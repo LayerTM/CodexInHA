@@ -90,7 +90,7 @@ test('the prompt profile carries every restricting switch', () => {
   for (const flag of ['--json', '--ephemeral', '--skip-git-repo-check', '--ignore-user-config', '--ignore-rules', '--strict-config']) {
     assert.ok(argv.includes(flag), flag);
   }
-  assert.deepEqual(argv.slice(argv.indexOf('--sandbox'), argv.indexOf('--sandbox') + 2), L.SANDBOX_ARGS);
+  assert.deepEqual(argv.slice(argv.indexOf('--sandbox'), argv.indexOf('--sandbox') + 2), L.PROMPT_SANDBOX_ARGS);
   assert.equal(argv[argv.indexOf('--cd') + 1], '/run/prompt/w1');
   assert.equal(argv[argv.indexOf('--output-schema') + 1], '/run/prompt/schema.json');
   assert.deepEqual(configs(argv), [
@@ -109,15 +109,16 @@ test('the prompt profile carries every restricting switch', () => {
   assert.ok(!argv.some((a) => /yolo|--full-auto|--approve-for-me|bypass/i.test(a)));
 });
 
-// The whole point of the container-as-boundary form is that it replaces ONE
-// switch. A later edit that drops a denial with it would leave a prompt run
-// reading the user's configuration or running commands, and nothing else here
-// would notice.
-test('dropping the CLI sandbox drops nothing else', () => {
+// The sandbox a prompt run asks for is the only thing that refuses an
+// apply_patch write: measured in the add-on, `read-only` rejected the patch and
+// `danger-full-access` wrote the file into the Home Assistant configuration
+// directory. So a prompt run must never carry the console's permissive mode,
+// and it must keep every denial around it.
+test('a prompt run keeps the sandbox that refuses a write, and every denial with it', () => {
   const { argv } = launch();
-  assert.ok(!argv.includes('read-only'), 'no sandbox the container cannot build');
-  assert.ok(!argv.includes('workspace-write'), 'no sandbox the container cannot build');
-  assert.deepEqual(L.SANDBOX_ARGS, ['--sandbox', 'danger-full-access']);
+  assert.deepEqual(L.PROMPT_SANDBOX_ARGS, ['--sandbox', 'read-only']);
+  assert.ok(!argv.includes('danger-full-access'), 'never the console\'s permissive mode');
+  assert.ok(!argv.some((a) => /yolo|--full-auto|--approve-for-me|bypass/i.test(a)));
   for (const flag of ['--ephemeral', '--skip-git-repo-check', '--ignore-user-config',
     '--ignore-rules', '--strict-config']) assert.ok(argv.includes(flag), flag);
   assert.deepEqual(configs(argv), [
@@ -134,8 +135,16 @@ test('dropping the CLI sandbox drops nothing else', () => {
   assert.ok(present.length >= 15, 'the fixture still names the features a prompt run denies');
   for (const f of present) assert.ok(off.includes(f.name), `${f.name} stays disabled`);
   for (const name of ['shell_tool', 'unified_exec', 'apps']) assert.ok(off.includes(name), name);
-  assert.deepEqual(L.askLaunch({ features: FEATURES, workDir: '/tmp/ask' }).argv
-    .slice(0, 2), ['exec', '--json'], 'the one-shot question uses the same profile');
+  const ask = L.askLaunch({ features: FEATURES, workDir: '/tmp/ask' }).argv;
+  assert.deepEqual(ask.slice(0, 2), ['exec', '--json'], 'the one-shot question uses the same profile');
+  assert.deepEqual(ask.slice(ask.indexOf('--sandbox'), ask.indexOf('--sandbox') + 2), L.PROMPT_SANDBOX_ARGS);
+});
+
+// The two profiles are two different answers to the same question, and the
+// permissive one belongs to the owner's own console alone.
+test('the console profile and the prompt profile are not the same boundary', () => {
+  assert.deepEqual(L.CONSOLE_SANDBOX_ARGS, ['--sandbox', 'danger-full-access']);
+  assert.notDeepEqual(L.CONSOLE_SANDBOX_ARGS, L.PROMPT_SANDBOX_ARGS);
 });
 
 // The console is launched by a shell script, not by this module, so the two say
@@ -144,7 +153,7 @@ test('the console launcher declares the same boundary', () => {
   const script = fs.readFileSync(
     path.join(__dirname, '..', '..', 'rootfs', 'usr', 'local', 'bin', 'start-codex'), 'utf8',
   );
-  assert.ok(script.includes(L.SANDBOX_ARGS.join(' ')), 'the boundary, in the console launcher');
+  assert.ok(script.includes(L.CONSOLE_SANDBOX_ARGS.join(' ')), 'the boundary, in the console launcher');
   assert.ok(script.includes(L.BYPASS_FLAG), 'the bypass option, in the console launcher');
 });
 
@@ -261,9 +270,9 @@ test('the console is unrestricted: bypass when asked, then the extra arguments a
   assert.deepEqual(L.consoleArgs({ bypass_permissions: true, extra_args: ['--search', '-m', 'gpt-5.5'] }),
     [L.BYPASS_FLAG, '--search', '-m', 'gpt-5.5']);
   assert.deepEqual(L.consoleArgs({ bypass_permissions: false, extra_args: ['-c', 'x=1', '', 5, null] }),
-    [...L.SANDBOX_ARGS, '-c', 'x=1']);
-  assert.deepEqual(L.consoleArgs({ bypass_permissions: /** @type {any} */ ('true') }), L.SANDBOX_ARGS);
-  assert.deepEqual(L.consoleArgs(undefined), L.SANDBOX_ARGS);
+    [...L.CONSOLE_SANDBOX_ARGS, '-c', 'x=1']);
+  assert.deepEqual(L.consoleArgs({ bypass_permissions: /** @type {any} */ ('true') }), L.CONSOLE_SANDBOX_ARGS);
+  assert.deepEqual(L.consoleArgs(undefined), L.CONSOLE_SANDBOX_ARGS);
   assert.equal(L.BYPASS_FLAG, '--dangerously-bypass-approvals-and-sandbox');
 });
 

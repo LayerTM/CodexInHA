@@ -22,9 +22,10 @@ configuration:
       uruchamianiem poleceń powłoki, edycją plików czy innymi działaniami.
       Włącz tylko, jeśli w pełni ufasz decyzjom Codex.
       Odpowiada fladze --dangerously-bypass-approvals-and-sandbox.
-      Granicą dla Codex w obu przypadkach jest kontener dodatku: własna
-      piaskownica CLI nie jest używana w żadnym ustawieniu, bo kontener dodatku
-      nie może jej utworzyć. Ta opcja decyduje o prośbach o zatwierdzenie.
+      W obu przypadkach konsola działa bez piaskownicy — to Twoja własna
+      sesja, a granicą wokół niej jest kontener dodatku. Ta opcja decyduje o
+      prośbach o zatwierdzenie. Prompt API jest osobne: zawsze działa w sesji
+      Codex tylko do odczytu, niezależnie od tego ustawienia.
   auto_update:
     name: Automatyczna aktualizacja Codex
     description: >-
