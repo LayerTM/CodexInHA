@@ -298,7 +298,10 @@ function runTokens(usage, model) {
  */
 function createDecoder(spec) {
   const allowed = new Set(spec.haAllowed.map(toolBasename).filter(Boolean));
-  const decoder = events.createDecoder({ allowedTools: [...allowed] });
+  // The decoder is handed the core's rule rather than a rule of its own: what
+  // the CLI reports is the name the SERVER published, and only the core says
+  // how Home Assistant names one.
+  const decoder = events.createDecoder({ allowedTools: [...allowed], basename: haBasename });
   const model = spec.model || '';
   let usage = null;
   let done = false;

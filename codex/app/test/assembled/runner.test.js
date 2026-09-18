@@ -111,6 +111,45 @@ test('a turn that ends without a JSON answer is an error result', () => {
   assert.equal(out[0].deterministic, false);
 });
 
+test('the name the SERVER published is the name the run is judged by', () => {
+  // Measured 2026-09-18 in the sandbox: the CLI reported
+  // `homeassistant__GetLiveContext`, the request allowed `GetLiveContext`, and
+  // the run died as `unexpected MCP call ha/homeassistant__GetLiveContext` —
+  // the model had called the tool and the answer was thrown away. The adapter
+  // asks the core what that published name reduces to; it holds no rule of its
+  // own, which is why a namespace it has never seen is handled too.
+  for (const published of ['GetLiveContext', 'homeassistant__GetLiveContext', 'llm__homeassistant__GetLiveContext']) {
+    const decode = runner.createDecoder(spec({ haAllowed: ['ha__GetLiveContext'] }));
+    const out = events(decode, [
+      { type: 'item.started', item: { id: 'c1', type: 'mcp_tool_call', server: 'ha', tool: published } },
+      {
+        type: 'item.completed',
+        item: { id: 'c1', type: 'mcp_tool_call', server: 'ha', tool: published, status: 'completed' },
+      },
+    ]);
+    // The core is told the one name it knows, whatever the server called it.
+    assert.deepEqual(out, [
+      { type: 'tool-use', id: 'c1', name: 'ha__GetLiveContext' },
+      { type: 'tool-result', id: 'c1', isError: false },
+    ], published);
+  }
+
+  // And the other side of the same rule, or the fix would be "allow everything":
+  // a namespaced name whose basename is NOT allowed is still refused, and so is
+  // a namespace with no tool left after it.
+  for (const published of ['homeassistant__SomethingElse', 'intent__HassTurnOff', 'homeassistant__', '__']) {
+    const decode = runner.createDecoder(spec({ haAllowed: ['ha__GetLiveContext'] }));
+    const out = events(decode, [
+      { type: 'item.started', item: { id: 'c1', type: 'mcp_tool_call', server: 'ha', tool: published } },
+    ]);
+    assert.equal(out.length, 1, published);
+    assert.equal(out[0].type, 'result', published);
+    assert.equal(out[0].isError, true, published);
+    assert.equal(out[0].deterministic, true, published);
+    assert.match(out[0].text, /unexpected MCP call/, published);
+  }
+});
+
 test('a tool call outside the allowed list ends the run', () => {
   const decode = runner.createDecoder(spec());
   const out = events(decode, [

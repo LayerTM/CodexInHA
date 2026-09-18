@@ -12,8 +12,14 @@ function fixture(name) {
 }
 
 const ALLOWED = ['ha_read', 'HassTurnOn', 'GetLiveContext'];
+// These tests run from a bare checkout, where the core's rule for a published
+// tool name is not present. They therefore hand the decoder a server that
+// publishes no namespace at all — NOT a copy of the rule. What the real rule
+// does to a real name is asserted in `test/assembled/runner.test.js`, against
+// the core's own leaf.
+const NO_NAMESPACE = (published) => published;
 
-function decode(lines, exitCode = 0, opts = { allowedTools: ALLOWED }) {
+function decode(lines, exitCode = 0, opts = { allowedTools: ALLOWED, basename: NO_NAMESPACE }) {
   const d = createDecoder(opts);
   const events = lines.flatMap((l) => d.line(typeof l === 'string' ? l : JSON.stringify(l)));
   return { events, outcome: d.end(exitCode) };
@@ -69,7 +75,7 @@ for (const [name, what] of [['command-execution', 'command_execution'], ['file-c
 }
 
 test('a refused tool call is reported as failed, not as used (recorded run)', () => {
-  const { outcome } = decode(fixture('mcp-call-refused'), 0, { allowedTools: ['ha_write', 'ha_other', 'ha_read'] });
+  const { outcome } = decode(fixture('mcp-call-refused'), 0, { allowedTools: ['ha_write', 'ha_other', 'ha_read'], basename: NO_NAMESPACE });
   assert.deepEqual(outcome.toolsUsed, ['ha_other', 'ha_read']);
   assert.equal(outcome.mcpFailed, true);
   assert.deepEqual(outcome.toolCalls[0], {
@@ -128,7 +134,7 @@ test('only the Home Assistant server counts as ours', () => {
   assert.equal(decoy.status, 'error');
   assert.equal(decoy.reason, 'policy');
   assert.deepEqual(decoy.toolsUsed, []);
-  const renamed = decode([...START, mcp('completed', 'i1', 'home', 'x'), FINAL, DONE], 0, { allowedTools: ['x'], haServer: 'home' }).outcome;
+  const renamed = decode([...START, mcp('completed', 'i1', 'home', 'x'), FINAL, DONE], 0, { allowedTools: ['x'], haServer: 'home', basename: NO_NAMESPACE }).outcome;
   assert.equal(renamed.status, 'ok');
   assert.deepEqual(renamed.toolsUsed, ['x']);
   assert.equal(decode([...START, mcp('completed', 'i1', 'ha', ''), FINAL, DONE]).outcome.reason, 'policy');
@@ -145,7 +151,7 @@ test('only an allowed tool counts; any other tool on the server is a violation',
       assert.deepEqual(r.toolsUsed, []);
     }
   }
-  assert.equal(decode([...START, mcp('completed', 'i1', 'ha', 'ha_read'), FINAL, DONE], 0, { allowedTools: [] }).outcome.reason, 'policy');
+  assert.equal(decode([...START, mcp('completed', 'i1', 'ha', 'ha_read'), FINAL, DONE], 0, { allowedTools: [], basename: NO_NAMESPACE }).outcome.reason, 'policy');
 });
 
 test('a run that read a server resource fails even though the resource was served (recorded run)', () => {
@@ -167,7 +173,16 @@ test('a refused resource listing is still a violation (recorded run)', () => {
 
 test('a decoder is never made without the allowed tool names', () => {
   for (const opts of [undefined, {}, { allowedTools: 'ha_read' }, { allowedTools: [''] }, { allowedTools: [3] }]) {
-    assert.throws(() => createDecoder(/** @type {any} */ (opts)), /allowedTools/, JSON.stringify(opts));
+    assert.throws(() => createDecoder(/** @type {any} */ ({ basename: NO_NAMESPACE, ...(opts || {}) })),
+      /allowedTools/, JSON.stringify(opts));
+  }
+});
+
+test('a decoder is never made without the rule for a published name', () => {
+  // No default: a decoder that has to guess the rule is the decoder that
+  // refused every namespaced tool a real server published.
+  for (const opts of [{ allowedTools: ALLOWED }, { allowedTools: ALLOWED, basename: 'GetLiveContext' }]) {
+    assert.throws(() => createDecoder(/** @type {any} */ (opts)), /basename/, JSON.stringify(opts));
   }
 });
 
