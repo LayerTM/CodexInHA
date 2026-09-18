@@ -404,6 +404,10 @@ module.exports = {
   toolName,
   toolBasename,
   runTokens,
+  // Exported for the contract test only: the file `prompt.writeMcpConfig` writes is the file this
+  // reads, and nothing else in the add-on ties the two halves together. Read by
+  // test/assembled/mcp-config-contract.test.js.
+  relay,
   launch: launchRun,
   createDecoder,
 };
