@@ -1,5 +1,25 @@
 # Changelog
 
+## 0.1.3
+
+- Ask the assistant about your home and it answers with your home. Home Assistant
+  publishes each tool under the name of the API it comes from — `intent__HassTurnOn`,
+  `homeassistant__GetLiveContext` — and the add-on predicted that spelling itself, in
+  the filter it passed to the run and again when it matched an incoming call. The
+  filter matched nothing, so the assistant was offered no Home Assistant tool at all
+  and answered from nothing. Both places now take the name from the one function that
+  states the rule, and a run records the full published name beside the short one.
+- A question that asks for an action or an automation is answered instead of refused.
+  The model behind this CLI accepts a structured answer only when every object in it
+  is closed, while an intent's data and an automation block are open by nature; the
+  add-on now says so before the run, and the shipped core reads that declaration.
+- A run that goes wrong says why. A refused credential is written down instead of
+  looking like an engine that simply called nothing, and the record of a run names
+  what it actually did.
+- The token of a question run is no longer passed on the command line, so it cannot
+  appear in a process listing.
+- Polish: every quoted phrase closes with a Polish quotation mark, not an ASCII one.
+
 ## 0.1.2
 
 - Ask the add-on a question and it answers. In 0.1.1 only the first question of
