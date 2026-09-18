@@ -248,8 +248,8 @@ test('a wrong link is replaced, a copied login is refused', (t) => {
   assert.throws(() => L.preparePromptHome(consoleHome, promptHome), /is a file/);
 });
 
-test('instructions or configuration in the prompt home stop the run', (t) => {
-  for (const name of ['AGENTS.md', 'AGENTS.override.md', 'config.toml']) {
+test('instructions in the prompt home stop the run', (t) => {
+  for (const name of ['AGENTS.md', 'AGENTS.override.md']) {
     const { root, consoleHome, promptHome } = tmpHomes();
     t.after(() => fs.rmSync(root, { recursive: true, force: true }));
     fs.mkdirSync(promptHome);
@@ -259,6 +259,23 @@ test('instructions or configuration in the prompt home stop the run', (t) => {
     fs.symlinkSync('/nowhere', path.join(promptHome, name));
     assert.throws(() => L.preparePromptHome(consoleHome, promptHome), /must not exist/, `dangling ${name}`);
   }
+});
+
+test("the CLI's own config.toml is cleared, not a reason to refuse", (t) => {
+  // The CLI writes one itself: every run records a trust entry for the working
+  // directory it was started in. Measured in the sandbox, that file then blocked
+  // every following run, so no question was ever answered.
+  const { root, consoleHome, promptHome } = tmpHomes();
+  t.after(() => fs.rmSync(root, { recursive: true, force: true }));
+  fs.mkdirSync(promptHome);
+  fs.writeFileSync(path.join(promptHome, 'config.toml'),
+    '[projects."/data/codex-prompt/run/run-1-2-abc/work"]\ntrust_level = "trusted"\n');
+  assert.equal(L.preparePromptHome(consoleHome, promptHome), promptHome);
+  assert.deepEqual(fs.readdirSync(promptHome), ['auth.json']);
+  // A dangling link by that name goes the same way.
+  fs.symlinkSync('/nowhere', path.join(promptHome, 'config.toml'));
+  L.preparePromptHome(consoleHome, promptHome);
+  assert.deepEqual(fs.readdirSync(promptHome), ['auth.json']);
 });
 
 test('the prompt home is never the console home', () => {
