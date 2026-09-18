@@ -127,76 +127,151 @@ test('a turn that fails in the model is offered as a retryable error', () => {
   assert.equal(result.deterministic, false);
 });
 
-test('every run gets a directory of its own, and a live one is never swept', () => {
-  const fs = require('node:fs');
-  const os = require('node:os');
-  const path = require('node:path');
-  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'codex-runs-'));
-  const a = runner.newRunDir(root);
-  const b = runner.newRunDir(root);
+const fs = require('node:fs');
+const os = require('node:os');
+const path = require('node:path');
+
+// A stand-in for /proc: a directory per live process, each holding a stat line
+// in the real shape — the program name in brackets, then the fields, with the
+// start time as field 22. Nothing here reads the machine's real processes.
+function fakeProc(processes) {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'codex-proc-'));
+  for (const [pid, started] of Object.entries(processes)) {
+    const dir = path.join(root, String(pid));
+    fs.mkdirSync(dir);
+    // The fields after the program name, starting at the state (field 3), so
+    // the start time (field 22) is at index 19 — the shape the reader expects.
+    const fields = new Array(50).fill('0');
+    fields[0] = 'S';
+    fields[19] = String(started);
+    fs.writeFileSync(path.join(dir, 'stat'), `${pid} (codex) ${fields.join(' ')}\n`);
+  }
+  return root;
+}
+
+function runRoot() {
+  return fs.mkdtempSync(path.join(os.tmpdir(), 'codex-runs-'));
+}
+
+test('a live run of this process is never swept, however long it takes', () => {
+  const procRoot = fakeProc({ 100: 777 });
+  const root = runRoot();
   try {
+    const a = runner.newRunDir(root, { self: 100, procRoot });
+    const b = runner.newRunDir(root, { self: 100, procRoot });
     assert.notEqual(a, b);
     assert.ok(fs.existsSync(path.join(a, 'work')));
-    assert.ok(fs.existsSync(path.join(b, 'work')));
-    // Both belong to this process and are in use: no sweep may take them,
-    // however long the runs last. Age is not consulted at all.
-    assert.deepEqual(runner.sweepRunDirs(root), []);
+    // Age is not consulted at all: both runs are in flight.
+    assert.deepEqual(runner.sweepRunDirs(root, { self: 100, procRoot }), []);
+    assert.ok(fs.existsSync(a) && fs.existsSync(b));
+    // The run ends. The directory is not deleted on the spot — the CLI child
+    // may still be closing down in it — but the next sweep takes it.
+    runner.endRun(a);
     assert.ok(fs.existsSync(a));
-    assert.ok(fs.existsSync(b));
-    // The run that owned it has ended.
-    runner.releaseRunDir(a);
+    assert.deepEqual(runner.sweepRunDirs(root, { self: 100, procRoot }), [a]);
     assert.ok(!fs.existsSync(a));
-    assert.ok(fs.existsSync(b));
+    assert.ok(fs.existsSync(b), 'the run still in flight is untouched');
   } finally {
     fs.rmSync(root, { recursive: true, force: true });
+    fs.rmSync(procRoot, { recursive: true, force: true });
   }
 });
 
-test('a directory left behind by a process that died is swept', () => {
-  const fs = require('node:fs');
-  const os = require('node:os');
-  const path = require('node:path');
-  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'codex-runs-'));
+// The one-shot question is its own process, and the console sweeps at every
+// start. A directory must therefore belong to somebody from the instant it
+// exists — which is why the owner is in the name, written by the single call
+// that creates it, and not in a file written afterwards.
+test('a directory another process just created is never swept', () => {
+  const procRoot = fakeProc({ 100: 777, 200: 888 });
+  const root = runRoot();
   try {
-    // As another process would leave it: an owner file naming a pid, and no
-    // entry in this process's live set.
-    const dead = path.join(root, 'run-dead');
-    const alive = path.join(root, 'run-alive');
-    for (const dir of [dead, alive]) fs.mkdirSync(path.join(dir, 'work'), { recursive: true });
-    fs.writeFileSync(path.join(dead, runner.OWNER_FILE), '4242\n');
-    fs.writeFileSync(path.join(alive, runner.OWNER_FILE), '4243\n');
-    const orphan = path.join(root, 'run-no-owner');
-    fs.mkdirSync(orphan);
-
-    const killFn = (pid) => {
-      if (pid === 4243) return true;
-      const err = new Error('no such process');
-      err.code = 'ESRCH';
-      throw err;
-    };
-    const removed = runner.sweepRunDirs(root, { killFn });
-    assert.deepEqual(removed.sort(), [dead, orphan].sort());
-    assert.ok(fs.existsSync(alive), 'a directory whose owner still runs is kept');
-    assert.ok(!fs.existsSync(dead));
-    assert.ok(!fs.existsSync(orphan), 'a directory with no owner is nobody\'s live run');
+    const theirs = runner.newRunDir(root, { self: 200, procRoot });
+    // The console sweeps, knowing nothing of that run: it is not in its live
+    // set, and no file inside the directory is read.
+    assert.deepEqual(runner.sweepRunDirs(root, { self: 100, procRoot }), []);
+    assert.ok(fs.existsSync(theirs));
+    assert.ok(fs.existsSync(path.join(theirs, 'work')));
   } finally {
     fs.rmSync(root, { recursive: true, force: true });
+    fs.rmSync(procRoot, { recursive: true, force: true });
   }
 });
 
-test('a process that exists but belongs to somebody else counts as alive', () => {
-  const eperm = (_pid) => {
-    const err = new Error('operation not permitted');
-    err.code = 'EPERM';
-    throw err;
-  };
-  assert.equal(runner.processAlive(4242, eperm), true);
-  const gone = (_pid) => {
-    const err = new Error('no such process');
-    err.code = 'ESRCH';
-    throw err;
-  };
-  assert.equal(runner.processAlive(4242, gone), false);
-  assert.equal(runner.processAlive(NaN, gone), false);
-  assert.equal(runner.processAlive(0, gone), false);
+test('a directory is swept only when its owner is provably gone', () => {
+  const procRoot = fakeProc({ 100: 777, 200: 888 });
+  const root = runRoot();
+  try {
+    const gone = path.join(root, 'run-300-999-aaa');      // pid 300 does not exist
+    const reused = path.join(root, 'run-200-111-bbb');    // pid 200 exists, started later
+    const alive = path.join(root, 'run-200-888-ccc');     // pid 200, the same process
+    const nameless = path.join(root, 'something-else');   // not a run directory at all
+    const unreadable = path.join(root, 'run-abc-def-ddd'); // a name this cannot read
+    for (const dir of [gone, reused, alive, nameless, unreadable]) fs.mkdirSync(dir);
+
+    const removed = runner.sweepRunDirs(root, { self: 100, procRoot }).sort();
+    assert.deepEqual(removed, [gone, reused].sort());
+    assert.ok(fs.existsSync(alive), 'the owner is still running');
+    assert.ok(fs.existsSync(nameless), 'not a run directory, not ours to remove');
+    assert.ok(fs.existsSync(unreadable), 'a name that says nothing is not permission to delete');
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+    fs.rmSync(procRoot, { recursive: true, force: true });
+  }
+});
+
+// After a container restart /data still holds the directories, and pids start
+// again from small numbers, so a stale pid can match a live process.
+test('the same pid started at another time is a different process', () => {
+  const procRoot = fakeProc({ 7: 500 });
+  assert.equal(runner.ownerIsGone('run-7-500-x', { self: 1, procRoot }), false);
+  assert.equal(runner.ownerIsGone('run-7-499-x', { self: 1, procRoot }), true);
+  // Our own directory that is not live is a run of ours that has ended.
+  assert.equal(runner.ownerIsGone('run-7-500-x', { self: 7, procRoot }), true);
+});
+
+test('what cannot be read is never treated as gone', () => {
+  const procRoot = fakeProc({ 7: 500 });
+  const missingProc = path.join(procRoot, 'no-such-proc');
+  // No /proc to ask: every directory is kept.
+  assert.equal(runner.ownerIsGone('run-7-500-x', { self: 1, procRoot: missingProc }), true,
+    'a missing process directory means gone');
+  assert.equal(runner.processStart(7, procRoot), '500');
+  assert.equal(runner.processStart(8, procRoot), 'gone');
+  // A stat line in a shape this does not know answers "cannot tell", and a
+  // directory whose owner cannot be told about is kept.
+  fs.writeFileSync(path.join(procRoot, '7', 'stat'), 'nonsense without a bracket\n');
+  assert.equal(runner.processStart(7, procRoot), null);
+  assert.equal(runner.ownerIsGone('run-7-500-x', { self: 1, procRoot }), false);
+  fs.rmSync(procRoot, { recursive: true, force: true });
+});
+
+test('a process whose start time cannot be read names its directories unsweepably', () => {
+  const procRoot = fakeProc({});
+  const root = runRoot();
+  try {
+    const dir = runner.newRunDir(root, { self: 100, procRoot });
+    assert.match(path.basename(dir), /^run-100-unknown-/);
+    runner.endRun(dir);
+    // Nothing can prove such an owner gone, so nothing removes it while this
+    // process lives; it is cleared when the directory is asked about by a
+    // process that can read start times.
+    assert.deepEqual(runner.sweepRunDirs(root, { self: 100, procRoot }), []);
+    assert.ok(fs.existsSync(dir));
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+    fs.rmSync(procRoot, { recursive: true, force: true });
+  }
+});
+
+test('the one-shot question removes its own directory once its child has exited', () => {
+  const procRoot = fakeProc({ 100: 777 });
+  const root = runRoot();
+  try {
+    const dir = runner.newRunDir(root, { self: 100, procRoot });
+    runner.removeRunDir(dir);
+    assert.ok(!fs.existsSync(dir));
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+    fs.rmSync(procRoot, { recursive: true, force: true });
+  }
 });

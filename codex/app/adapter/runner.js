@@ -35,9 +35,6 @@ const events = require('./events');
 // one shared directory meant the second run emptied the directory the first was
 // working in and overwrote the schema it was answering against.
 const RUN_DIR = path.join(cli.PROMPT_HOME, 'run');
-// The name of the file that says which process a run directory belongs to.
-const OWNER_FILE = 'owner.pid';
-
 // The run directories this process is using right now. A directory is in here
 // from the moment it is made until the run that owns it ends, so a sweep can
 // tell a live run from an abandoned one without guessing from a timestamp.
@@ -109,25 +106,61 @@ function relay(file) {
   }
 }
 
-// Is this process still there? Signal 0 asks without sending anything: it
-// succeeds while the process exists, and EPERM means it exists but belongs to
-// somebody else. Only ESRCH — no such process — makes a directory abandoned.
-function processAlive(pid, killFn = process.kill) {
-  if (!Number.isInteger(pid) || pid <= 0) return false;
+// Who a run directory belongs to is in its NAME: `run-<pid>-<start>-<random>`,
+// written by the one atomic call that creates it. A directory therefore never
+// exists without its owner: an earlier version wrote the owner into a file
+// afterwards, and a sweep running in another process (the one-shot question is
+// its own process) could see the directory in between and take it away from a
+// run that was just starting.
+//
+// `<start>` is the moment that process started, which is what tells one process
+// from another one that later got the same number — /data outlives a container
+// restart, and container pids start again from small numbers.
+const RUN_NAME = /^run-(\d+)-(\d+)-/;
+
+// A process's start time, as the system counts it: field 22 of
+// /proc/<pid>/stat, the one field that makes a pid unique over time. The field
+// is read from the end, because field 2 is the program name and may contain
+// spaces and brackets. `null` means the question could not be answered — which
+// is never treated as "gone".
+function processStart(pid, procRoot = '/proc') {
+  let stat;
   try {
-    killFn(pid, 0);
-    return true;
+    stat = fs.readFileSync(path.join(procRoot, String(pid), 'stat'), 'utf8');
   } catch (err) {
-    return err.code === 'EPERM';
+    if (err.code === 'ENOENT') return 'gone';
+    return null;
   }
+  const close = stat.lastIndexOf(')');
+  if (close === -1) return null;
+  const fields = stat.slice(close + 2).trim().split(/\s+/);
+  // After the program name, field 3 of the line is the first here, so the
+  // start time (field 22) is at index 19.
+  const value = fields[19];
+  return /^\d+$/.test(value) ? value : null;
 }
 
-function ownerPid(dir) {
-  try {
-    return Number.parseInt(fs.readFileSync(path.join(dir, OWNER_FILE), 'utf8').trim(), 10);
-  } catch {
-    return NaN;
-  }
+/**
+ * Is the run that owns this directory over?
+ *
+ * Only a positive answer removes anything. "The process is gone", or "a
+ * different process has that number now", are positive. Everything else — a
+ * name that does not say who owns it, a /proc that cannot be read, a stat line
+ * in a shape this does not know — leaves the directory alone, because not
+ * knowing is not the same as knowing it is dead.
+ */
+function ownerIsGone(name, { self = process.pid, procRoot = '/proc' } = {}) {
+  const m = RUN_NAME.exec(name);
+  if (!m) return false;
+  const pid = Number.parseInt(m[1], 10);
+  const started = m[2];
+  const current = processStart(pid, procRoot);
+  if (current === 'gone') return true;
+  if (current === null) return false;
+  if (current !== started) return true; // the number belongs to somebody else now
+  // The same process, still running. Our own directories that are not live are
+  // runs of ours that have ended; another process's are not ours to remove.
+  return pid === self;
 }
 
 // Directories of runs that are over. What decides is whether the run is still
@@ -135,12 +168,7 @@ function ownerPid(dir) {
 // work/, which does not move the directory's own timestamp, so an age would
 // only ever be a guess with a margin — and a margin quietly becomes zero when
 // somebody raises a time limit elsewhere.
-//
-// A directory is removed when it is not one this process is using AND the
-// process it belongs to is gone. So a run of this process is safe while it
-// lasts, however long that is, and a run left behind by a process that died is
-// cleared on the next start.
-function sweepRunDirs(root = RUN_DIR, { killFn = process.kill } = {}) {
+function sweepRunDirs(root = RUN_DIR, { self = process.pid, procRoot = '/proc' } = {}) {
   let entries;
   try {
     entries = fs.readdirSync(root);
@@ -151,11 +179,7 @@ function sweepRunDirs(root = RUN_DIR, { killFn = process.kill } = {}) {
   for (const name of entries) {
     const dir = path.join(root, name);
     if (live.has(dir)) continue;
-    const pid = ownerPid(dir);
-    // An owner that is still running keeps its directory, even when it is
-    // another process: this add-on runs one console, and a directory nobody
-    // here claims is not ours to take away from whoever does.
-    if (pid !== process.pid && processAlive(pid, killFn)) continue;
+    if (!ownerIsGone(name, { self, procRoot })) continue;
     try {
       fs.rmSync(dir, { recursive: true, force: true });
       removed.push(dir);
@@ -164,25 +188,35 @@ function sweepRunDirs(root = RUN_DIR, { killFn = process.kill } = {}) {
   return removed;
 }
 
-// One run's own empty directory, marked with the process it belongs to. The
-// CLI reads what it finds in its working directory, so a leftover file from
-// another run is input nobody meant to give it — and another run's live files
-// are not ours to delete.
-function newRunDir(root = RUN_DIR) {
+// One run's own directory. The CLI reads what it finds in its working
+// directory, so a leftover file from another run is input nobody meant to give
+// it — and another run's live files are not ours to delete.
+function newRunDir(root = RUN_DIR, { self = process.pid, procRoot = '/proc' } = {}) {
   fs.mkdirSync(root, { recursive: true, mode: 0o700 });
-  sweepRunDirs(root);
-  const dir = fs.mkdtempSync(path.join(root, 'run-'));
+  sweepRunDirs(root, { self, procRoot });
+  const started = processStart(self, procRoot);
+  // Without a start time this process cannot be told from a later one with the
+  // same number, so its directories are named in a way no sweep will ever
+  // remove, rather than in a way that might remove the wrong one.
+  const owner = started && started !== 'gone' ? `${self}-${started}` : `${self}-unknown`;
+  const dir = fs.mkdtempSync(path.join(root, `run-${owner}-`));
   fs.chmodSync(dir, 0o700);
   fs.mkdirSync(path.join(dir, 'work'), { mode: 0o700 });
-  fs.writeFileSync(path.join(dir, OWNER_FILE), `${process.pid}\n`, { mode: 0o600 });
   live.add(dir);
   return dir;
 }
 
-// The run that owned this directory has ended: it is no longer live, and the
-// directory goes with it. Called when a run reaches its result, and by
-// agent-ask when its child exits.
-function releaseRunDir(dir) {
+// The run that owned this directory has ended. The directory stops being live,
+// and the next sweep of this process takes it: it is not deleted here, because
+// the CLI child may still be closing down in it — the core kills the process
+// group after the result, not before.
+function endRun(dir) {
+  live.delete(dir);
+}
+
+// The run has ended AND its process is gone, so the directory can go now. Used
+// by the one-shot question, which waits for its own child.
+function removeRunDir(dir) {
   live.delete(dir);
   try {
     fs.rmSync(dir, { recursive: true, force: true });
@@ -267,7 +301,7 @@ function createDecoder(spec) {
     const dir = runDirs.get(spec);
     if (dir) {
       runDirs.delete(spec);
-      releaseRunDir(dir);
+      endRun(dir);
     }
   };
 
@@ -352,11 +386,12 @@ function createDecoder(spec) {
 module.exports = {
   features,
   newRunDir,
-  releaseRunDir,
+  endRun,
+  removeRunDir,
   sweepRunDirs,
-  processAlive,
+  ownerIsGone,
+  processStart,
   RUN_DIR,
-  OWNER_FILE,
   HA_TOOL_PREFIX,
   toolName,
   toolBasename,

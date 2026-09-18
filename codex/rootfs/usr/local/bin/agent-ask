@@ -88,11 +88,11 @@ function main() {
   });
 
   child.on('error', (err) => {
-    runner.releaseRunDir(runDir);
+    runner.removeRunDir(runDir);
     fail(err.message);
   });
   child.on('close', (code) => {
-    runner.releaseRunDir(runDir);
+    runner.removeRunDir(runDir);
     if (code !== 0) fail(`the agent exited with status ${code}`);
     if (answer === null || answer.trim() === '') fail('the agent gave no answer');
     process.stdout.write(`${answer}\n`);
