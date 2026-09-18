@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.1.2
+
+- Ask the add-on a question and it answers. In 0.1.1 only the first question of
+  a session reached the assistant: the Codex CLI records which directory it has
+  been asked to trust in a configuration file of its own, the add-on keeps
+  question runs in a home of their own so they read none of your instructions,
+  and the check that enforced that refused to start a run once the CLI had
+  written that file. Every question after the first failed. The check now knows
+  the difference between an instructions file, which still stops a run, and the
+  CLI's own configuration, which is cleared before each run.
+
 ## 0.1.1
 
 - The Codex CLI is on `PATH` in a shell tab. In 0.1.0 a tab answered
