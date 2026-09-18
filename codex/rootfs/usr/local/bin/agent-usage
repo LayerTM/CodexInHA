@@ -1,0 +1,162 @@
+#!/usr/bin/env python3
+"""Codex's console usage, for the core's ha-usage and /api/usage.
+
+The CLI records one session as a file of JSON lines under
+``$CODEX_HOME/sessions/YYYY/MM/DD/rollout-*.jsonl``. Only its
+``token_usage_record`` lines are counted: each one is what a single model
+response used (measured on CLI 0.154.0 — the thread total equals the sum of
+those records). ``token_count`` lines carry running totals of the same figures
+and are deliberately ignored, or every response would be counted twice.
+
+``input_tokens`` there INCLUDES the tokens read from cache, while the core
+counts fresh input only, so the cached ones are taken out. The model is not on
+the record: it comes from the ``turn_context`` line of the same turn, which the
+CLI always writes earlier in the same file, so the parser only ever needs what
+it has already read (measured: 68 of 68 records in 24 session files).
+
+Prompt API runs are ``--ephemeral`` and write no session file at all; the core
+counts them from its own audit log.
+
+Usage (the core's parser protocol, one JSON array per line on stdin):
+    agent-usage --files    # the session files, each followed by a NUL byte
+    agent-usage --parse    # ["S",id,state] / ["L",text] / ["E",id]
+    agent-usage --source   # where the files are read from
+"""
+
+from __future__ import annotations
+
+import glob
+import json
+import os
+import sys
+
+CODEX_HOME = os.environ.get("CODEX_HOME", "/data/codex")
+SESSIONS = os.path.join(CODEX_HOME, "sessions")
+
+# A turn's model is remembered only until its records have been read. A session
+# has a handful of turns; this bound keeps the state far below the core's 64 KB
+# whatever a file contains.
+MAX_TURNS = 64
+
+
+def _count(value) -> int:
+    return value if isinstance(value, int) and value >= 0 else 0
+
+
+def session_files() -> list[str]:
+    return sorted(glob.glob(os.path.join(SESSIONS, "*", "*", "*", "rollout-*.jsonl")))
+
+
+class FileParser:
+    """The lines of one file, and the models the turns before them declared."""
+
+    def __init__(self, state) -> None:
+        turns = state.get("turns") if isinstance(state, dict) else None
+        self.turns: dict[str, str] = {}
+        if isinstance(turns, dict):
+            for turn_id, model in turns.items():
+                if isinstance(turn_id, str) and isinstance(model, str):
+                    self.turns[turn_id] = model
+
+    def state(self) -> dict:
+        turns = list(self.turns.items())[-MAX_TURNS:]
+        return {"turns": dict(turns)}
+
+    def line(self, text: str) -> list[dict]:
+        if '"turn_context"' not in text and '"token_usage_record"' not in text:
+            return []
+        try:
+            event = json.loads(text)
+        except ValueError:
+            return []
+        if not isinstance(event, dict):
+            return []
+        payload = event.get("payload")
+        if not isinstance(payload, dict):
+            return []
+        kind = event.get("type")
+        turn_id = payload.get("turn_id")
+
+        if kind == "turn_context":
+            model = payload.get("model")
+            if isinstance(turn_id, str) and isinstance(model, str) and model:
+                self.turns[turn_id] = model
+                if len(self.turns) > MAX_TURNS:
+                    self.turns.pop(next(iter(self.turns)))
+            return []
+
+        if kind != "token_usage_record":
+            return []
+        usage = payload.get("usage")
+        if not isinstance(usage, dict):
+            return []
+        timestamp = event.get("timestamp")
+        day = timestamp[:10] if isinstance(timestamp, str) and len(timestamp) >= 10 else "unknown"
+        model = self.turns.get(turn_id) if isinstance(turn_id, str) else None
+        cache_read = _count(usage.get("cached_input_tokens"))
+        # The cached tokens are part of input_tokens; the core counts them apart.
+        fresh_input = max(_count(usage.get("input_tokens")) - cache_read, 0)
+        return [{
+            "day": day,
+            "model": model or "unknown",
+            "input": fresh_input,
+            # Reasoning tokens are billed as output and are not counted anywhere
+            # else in the record, so they are part of the output here.
+            "output": _count(usage.get("output_tokens")) + _count(usage.get("reasoning_output_tokens")),
+            "cache_read": cache_read,
+            "cache_write": _count(usage.get("cache_write_input_tokens")),
+        }]
+
+
+def parse(stdin, stdout) -> int:
+    parser: FileParser | None = None
+    for raw in stdin:
+        raw = raw.strip()
+        if not raw:
+            continue
+        try:
+            message = json.loads(raw)
+        except ValueError:
+            print("agent-usage: input line is not JSON", file=sys.stderr)
+            return 1
+        if not isinstance(message, list) or not message or not isinstance(message[0], str):
+            print("agent-usage: input line is not a protocol message", file=sys.stderr)
+            return 1
+        kind = message[0]
+        if kind == "S":
+            parser = FileParser(message[2] if len(message) > 2 else None)
+            answer = None
+        elif kind == "L":
+            text = message[1] if len(message) > 1 else ""
+            if parser is None or not isinstance(text, str):
+                answer = []
+            else:
+                answer = parser.line(text)
+        elif kind == "E":
+            answer = {"state": parser.state() if parser else {"turns": {}}}
+            parser = None
+        else:
+            print(f"agent-usage: unknown message {kind}", file=sys.stderr)
+            return 1
+        stdout.write(json.dumps(answer, ensure_ascii=False) + "\n")
+        stdout.flush()
+    return 0
+
+
+def main(argv: list[str]) -> int:
+    if argv == ["--source"]:
+        print(SESSIONS)
+        return 0
+    if argv == ["--files"]:
+        out = sys.stdout
+        for path in session_files():
+            out.write(path + "\0")
+        return 0
+    if argv == ["--parse"]:
+        return parse(sys.stdin, sys.stdout)
+    print("usage: agent-usage --files | --parse | --source", file=sys.stderr)
+    return 2
+
+
+if __name__ == "__main__":
+    sys.exit(main(sys.argv[1:]))

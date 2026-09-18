@@ -7,7 +7,6 @@ No test framework required. Synthetic vectors only — no real secrets.
 
 from __future__ import annotations
 
-import sys
 
 from secret_scan import scan_text
 

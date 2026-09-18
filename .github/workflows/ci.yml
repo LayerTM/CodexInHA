@@ -10,7 +10,15 @@ permissions:
   contents: read
 
 jobs:
-  test:
+  # The tests run against the tree the image ships: this repository's files
+  # merged with the pinned ha-agent-core release, by the same script the image
+  # build uses. A test therefore sees the adapter exactly as the core loads it.
+  #
+  # Tests and the linters are two jobs, and their names are the ones main's
+  # branch protection requires: a job's name IS the check a pull request is
+  # gated on, so renaming one takes a gate away from every later pull request,
+  # not just this one.
+  tests:
     name: Tests
     runs-on: ubuntu-latest
     steps:
@@ -18,9 +26,17 @@ jobs:
       - uses: actions/setup-node@v7
         with:
           node-version: "26"
+      - name: Assemble the add-on with its pinned core
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          .github/scripts/core_archive.sh "${RUNNER_TEMP}/core"
+          codex/core/assemble.sh "${RUNNER_TEMP}/core/core.tar" codex "${RUNNER_TEMP}/addon"
       - name: Install dependencies
-        run: npm ci
+        working-directory: ${{ runner.temp }}/addon/app
+        run: '"${RUNNER_TEMP}/addon/install-tools/npm-ci-checked.sh"'
       - name: Run tests
+        working-directory: ${{ runner.temp }}/addon/app
         run: npm test
 
   lint-js:
@@ -31,12 +47,102 @@ jobs:
       - uses: actions/setup-node@v7
         with:
           node-version: "26"
+      - name: Assemble the add-on with its pinned core
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          .github/scripts/core_archive.sh "${RUNNER_TEMP}/core"
+          codex/core/assemble.sh "${RUNNER_TEMP}/core/core.tar" codex "${RUNNER_TEMP}/addon"
       - name: Install dependencies
-        run: npm ci
+        working-directory: ${{ runner.temp }}/addon/app
+        run: '"${RUNNER_TEMP}/addon/install-tools/npm-ci-checked.sh"'
       - name: Lint (eslint)
+        working-directory: ${{ runner.temp }}/addon/app
         run: npm run lint
       - name: Type-check (tsc --checkJs)
+        working-directory: ${{ runner.temp }}/addon/app
         run: npm run typecheck
+      # The add-on's Node executables live in rootfs/, outside app/, so the
+      # console's own config never sees them. They are linted here, from the
+      # assembled tree where app/ and rootfs/ sit side by side, against the
+      # files the interpreter check names rather than a list written by hand.
+      - name: Lint the Node executables
+        working-directory: ${{ runner.temp }}/addon
+        run: |
+          python3 "${GITHUB_WORKSPACE}/.github/scripts/lint_targets.py" \
+            --repo "${GITHUB_WORKSPACE}" --list node --root codex > "${RUNNER_TEMP}/node-targets"
+          # --max-warnings=0: a file ESLint has no configuration for is only a
+          # warning and would otherwise pass (measured on ESLint 9).
+          xargs -a "${RUNNER_TEMP}/node-targets" ./app/node_modules/.bin/eslint --max-warnings=0
+
+  # Every executable this repository ships is taken by one of the linters below,
+  # decided by its interpreter. A script that belongs to none fails this job:
+  # that is how an executable rewritten from one language into another stops
+  # being checked by anything while every other job stays green.
+  lint-coverage:
+    name: Every script has a linter
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.14"
+      - name: Self-test the interpreter check
+        working-directory: .github/scripts
+        run: python test_lint_targets.py
+      - name: Every executable script has a linter
+        run: python .github/scripts/lint_targets.py
+
+  addon-linter:
+    name: Add-on linter
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - name: Lint the add-on
+        uses: frenck/action-addon-linter@v2
+        with:
+          path: "./codex"
+
+  hadolint:
+    name: Dockerfile
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - name: Lint Dockerfile
+        uses: hadolint/hadolint-action@v3.5.0
+        with:
+          dockerfile: codex/Dockerfile
+          ignore: DL3003,DL3008,DL3013,DL3018,DL3059,SC2015
+
+  shellcheck:
+    name: Shell scripts
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - name: Install shellcheck
+        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends shellcheck
+      - name: Check every shell executable
+        run: |
+          python3 .github/scripts/lint_targets.py --list shell > "${RUNNER_TEMP}/shell-targets"
+          xargs -a "${RUNNER_TEMP}/shell-targets" shellcheck --severity=warning
+
+  python-lint:
+    name: Python scripts
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.14"
+      - name: Install the checker
+        run: pip install --disable-pip-version-check pyflakes==3.4.0
+      - name: Check every Python executable and script
+        run: |
+          python .github/scripts/lint_targets.py --list python > "${RUNNER_TEMP}/python-targets"
+          # The repository's own scanners are imported, not executed, so they
+          # are not executable and the interpreter check does not name them.
+          git ls-files '*.py' >> "${RUNNER_TEMP}/python-targets"
+          sort -u "${RUNNER_TEMP}/python-targets" | xargs pyflakes
 
   secret-scan:
     runs-on: ubuntu-latest
@@ -64,7 +170,7 @@ jobs:
         with:
           python-version: "3.14"
       - name: Self-test the scanner
-        working-directory: .github/scripts
         run: python test_hygiene_scan.py
+        working-directory: .github/scripts
       - name: Scan tracked files for traces of one machine
         run: python .github/scripts/hygiene_scan.py .
