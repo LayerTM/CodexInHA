@@ -29,6 +29,14 @@ module.exports = {
     // session files. Nothing here may pretend otherwise — without this the core
     // publishes no budget and refuses a non-zero one.
     reportsCost: false,
+    // The CLI hands a structured output to a model that accepts only CLOSED
+    // objects: every object needs `additionalProperties: false`, and an open one
+    // is refused before the run starts (`invalid_json_schema … additionalProperties
+    // is required to be supplied and to be false`, measured 2026-09-18). An
+    // intent's data and an automation block are open by nature — their keys
+    // belong to the home — so the core gives this engine no schema for an answer
+    // that contains one, rather than a schema this engine cannot be given.
+    closedSchemasOnly: true,
   },
   runner: {
     bin: CODEX_BIN,
