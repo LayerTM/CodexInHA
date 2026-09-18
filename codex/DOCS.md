@@ -223,11 +223,13 @@ deliberately much more restricted than the interactive console:
   that call is driven solely by the validated intent, never by the original
   free-form message, so untrusted text never reaches the state-changing path.
 - Rate-limited, concurrency-capped, time-bounded, output-capped, and
-  secret-redacted; no transcript of a request is kept once it has answered. Every
-  Home Assistant call a request makes also reaches the audit log (`ha-audit`)
-  with the arguments it used and what Home Assistant answered, written where the
-  call passes rather than by the agent itself — so a chat request cannot touch
-  your home without leaving that record.
+  secret-redacted; no transcript of a request is kept once it has answered. A
+  Home Assistant call a request makes is written to the audit log (`ha-audit`)
+  with the arguments it used and what Home Assistant answered — written when Home
+  Assistant answers it, where the call passes rather than by the agent itself, so
+  the record does not depend on the agent keeping it. Read the limit with it: in
+  this version a write to that log that fails — a full or read-only `/data` —
+  is not detected, so an action can happen with no line and nothing saying so.
 - **Its own model — optionally faster for voice.** The companion chat can run a
   different model from the interactive console (`chat_model`) — e.g. a quicker,
   cheaper one for snappy Assist replies — and spoken (voice) turns can use an even

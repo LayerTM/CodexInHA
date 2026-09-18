@@ -11,9 +11,10 @@ First version of the add-on.
   the add-on options.
 - A prompt API for the conversation agent: a request runs with no shell, no file
   access, no web search and none of the user's own configuration, and may call
-  only the Home Assistant tools that request allows. Every Home Assistant call it
-  makes is written to the audit log (`ha-audit`) with its arguments, recorded
-  where the call passes rather than by the agent itself.
+  only the Home Assistant tools that request allows. A Home Assistant call it
+  makes is written to the audit log (`ha-audit`) with its arguments when Home
+  Assistant answers it, recorded where the call passes rather than by the agent
+  itself. A write to that log that fails is not detected in this version.
 - The console's usage is reported per day and per model. This CLI reports no
   cost anywhere, so the add-on publishes none and has no daily budget.
 - Session transcripts are kept for `transcript_retention_days` days (30 by
