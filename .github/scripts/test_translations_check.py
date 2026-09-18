@@ -46,6 +46,22 @@ EMPTY_DESCRIPTION = """configuration:
     name: Model
     description: "  "
 """
+UNCLOSED_QUOTE = """configuration:
+  api_key:
+    name: API Key
+    description: Leave empty to use the \u201eModel" above.
+  model:
+    name: Model
+    description: A model.
+"""
+CLOSED_QUOTE = """configuration:
+  api_key:
+    name: API Key
+    description: Leave empty to use the \u201eModel\u201d above.
+  model:
+    name: Model
+    description: A model.
+"""
 UNKNOWN = BOTH + """  gone:
     name: Removed
     description: An option that no longer exists.
@@ -70,6 +86,8 @@ CASES = [
     ("an option with a name but no description", SCHEMA, {"en": NO_DESCRIPTION}, 1),
     ("a description that is only whitespace", SCHEMA, {"en": EMPTY_DESCRIPTION}, 1),
     ("a described option that is not in the schema", SCHEMA, {"en": UNKNOWN}, 1),
+    ("a quote that opens and never closes", SCHEMA, {"en": UNCLOSED_QUOTE}, 1),
+    ("a quote that closes the way it opened", SCHEMA, {"en": CLOSED_QUOTE}, 0),
     ("a translation file with no configuration section", SCHEMA, {"en": "network:\n  8099: null\n"}, 1),
     ("a config.yaml with no schema", 'name: "Codex"\n', {"en": BOTH}, 2),
     ("a translation file that is not YAML", SCHEMA, {"en": "configuration: [\n"}, 2),
