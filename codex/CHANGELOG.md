@@ -4,23 +4,60 @@
 
 First version of the add-on.
 
-- The Codex CLI in a Home Assistant add-on: a web console with tabs, a
-  clipboard, file attachments and browser testing, and a bundled Home Assistant
-  skill pack.
-- Sign in from the console with ChatGPT (`codex login`), or set an API key in
-  the add-on options.
-- A prompt API for the conversation agent: a request runs with no shell, no web
-  search and none of the user's own configuration, in a read-only sandbox that
-  refuses a file write, and may call only the Home Assistant tools that request
-  allows. A Home Assistant call it makes is written to the audit log
-  (`ha-audit`) with its arguments when Home
-  Assistant answers it, recorded where the call passes rather than by the agent
-  itself; a call that failed is marked `(failed)`, and one still unanswered when
-  the add-on stops is settled instead of vanishing. A write to that log that
-  fails is not detected in this version.
-- The console's usage is reported per day and per model. This CLI reports no
-  cost anywhere, so the add-on publishes none and has no daily budget.
-- Session transcripts are kept for `transcript_retention_days` days (30 by
-  default; 0 keeps them). What they counted stays counted after they are gone.
-- The console, the prompt server and the background loops come from the
-  `ha-agent-core` 0.6.0 release, verified against `core/core.lock.json`.
+**The console**
+
+- The Codex CLI itself, in a browser tab: your own sign-in, your own model, and the
+  skills, plugins and MCP servers you install, kept in `/data` across add-on updates.
+- Sign in from the console with ChatGPT (`codex login`), or set an API key in the
+  add-on options.
+- Tabs — the Codex session alongside any number of shell tabs — a clipboard that works
+  over plain HTTP, drag-and-drop and camera attachments, a searchable scrollback, a
+  quick-prompt menu that inserts text instead of running it, and a touch key bar on
+  phones. The session lives in tmux, so closing the browser does not end it.
+- Home Assistant is already wired up: `ha`, `ha-state`, `ha-check`, `ha-shot`,
+  `ha-audit`, `hass-cli`, `yq`, a Playwright browser and a bundled Home Assistant skill
+  pack, with your configuration directory as the working directory.
+- The CLI updates from the console (⬆ or `update-codex`), optionally at every start.
+- Optional remote control: drive the same session from the ChatGPT mobile app.
+
+**Chat from Assist**
+
+- A prompt API for the companion integration, on an internal port, with a bearer token
+  the add-on generates and hands over through Supervisor discovery.
+- A request runs a fresh Codex with no shell, no web search and none of your own
+  configuration, in a read-only sandbox that refuses a file write, in an empty private
+  directory removed with the run. It may call only the Home Assistant tools that request
+  allows, and only for entities you have exposed to Assist.
+- An action is proposed first and carried out only after you confirm it, from the
+  validated request rather than from the original message.
+- Every Home Assistant call a request makes is written to the audit log (`ha-audit`)
+  with its arguments, where the call passes rather than by the agent itself; a call that
+  failed is marked `(failed)`, and one still unanswered when the add-on stops is settled
+  instead of vanishing. **Known limit:** a failure of the write to that log — a full or
+  read-only `/data` — is not detected, so an action can happen with no line and nothing
+  saying so.
+- The chat can use its own models, including a faster one for voice answers and one for
+  camera snapshots.
+
+**Alerts and reports, without a model**
+
+- Opt-in deterministic alerts: water leak, an opening left open at night, low battery,
+  temperature or humidity out of band, high CO2, and a watched device going offline.
+  Fixed rules, no Codex call, no plan usage, no prompt-injection surface. Quiet hours
+  hold back the non-critical ones; a leak and a watched device going offline are always
+  sent.
+- Optional proactive monitoring and a morning digest, which do use the CLI.
+
+**Accounting**
+
+- Usage is reported per day and per model. This CLI reports no cost anywhere, so the
+  add-on publishes none and enforces no daily budget.
+- Uploaded files and session transcripts are deleted after their retention period (14
+  and 30 days by default; 0 keeps them). What they counted stays counted after they are
+  gone.
+
+**Where the rest comes from**
+
+- The console, the prompt server and the background loops come from the `ha-agent-core`
+  release pinned in `core/core.lock.json`. Its digest is verified before the archive is
+  unpacked into the image.
