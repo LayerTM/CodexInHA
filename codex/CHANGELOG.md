@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.1.1
+
+- The Codex CLI is on `PATH` in a shell tab. In 0.1.0 a tab answered
+  `codex: command not found`: a tab is a login shell, which rebuilds `PATH` from
+  scratch and threw away the directory the add-on installs the CLI into. The
+  add-on now declares that directory once and gives it to every shell it opens,
+  so `codex`, `codex login` and `update-codex` all work in a tab.
+- The documentation says what turns `/api/status`'s `ready` true: a completed
+  `codex login`, or an **API Key** in the options.
+
 ## 0.1.0
 
 First version of the add-on.
