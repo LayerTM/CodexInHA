@@ -95,6 +95,17 @@ configuration:
       Pliki dołączone przez konsolę webową są przechowywane w /data/uploads.
       Pliki starsze niż podana liczba dni są usuwane automatycznie.
       Ustaw 0, aby przechowywać przesłane pliki na zawsze.
+  transcript_retention_days:
+    name: Przechowywanie zapisów konsoli (dni)
+    description: >-
+      Zapisy sesji konsoli starsze niż podana liczba dni są usuwane automatycznie
+      (domyślnie 30). Ustaw 0, aby zachować je na zawsze.
+  quick_prompts:
+    name: Twoje szybkie polecenia
+    description: >-
+      Twoje własne polecenia do menu 💡 w konsoli, po jednym na wpis. Każde staje
+      się przyciskiem, który WSTAWIA tekst do pola polecenia do przejrzenia i
+      wysłania — nic nie uruchamia się samo.
   remote_control:
     name: Zdalne sterowanie (dostęp mobilny Codex)
     description: >-
@@ -177,11 +188,52 @@ configuration:
     description: >-
       Alarmuj, gdy włączony czujnik temperatury pokaże powyżej tej wartości
       (domyślnie 45). Używane tylko, gdy alerty temperatury są włączone.
+  alert_temp_entities:
+    name: Czujniki temperatury do sprawdzania
+    description: >-
+      Ogranicz alerty temperatury do tych czujników, po jednym entity_id na wpis.
+      Puste (domyślnie) sprawdza KAŻDY czujnik temperatury, łącznie z temperaturami
+      urządzeń — NAS czy przełącznik przy 45-75° wywoła wtedy fałszywy alarm.
+  alert_co2_above:
+    name: Alert CO2 powyżej (ppm)
+    description: >-
+      Alert, gdy czujnik dwutlenku węgla wskazuje powyżej tej wartości (domyślnie
+      1400), czyli pokój wymaga wywietrzenia. Ustaw 0, aby wyłączyć sprawdzanie.
+      Niekrytyczny: wstrzymywany w godzinach ciszy.
+  alert_humidity_enabled:
+    name: Alerty wilgotności
+    description: >-
+      Alert, gdy czujnik wilgotności wskazuje poniżej lub powyżej zakresu poniżej.
+      Domyślnie wyłączone, bo sensowne zakresy różnią się między pomieszczeniami.
+  alert_humidity_low:
+    name: Dolna wilgotność (%RH)
+    description: >-
+      Alert, gdy włączony czujnik wilgotności wskazuje poniżej tej wartości
+      (domyślnie 25). Używane tylko przy włączonych alertach wilgotności.
+  alert_humidity_high:
+    name: Górna wilgotność (%RH)
+    description: >-
+      Alert, gdy włączony czujnik wilgotności wskazuje powyżej tej wartości
+      (domyślnie 70). Używane tylko przy włączonych alertach wilgotności.
+  alert_offline:
+    name: Alerty o urządzeniach offline
+    description: >-
+      Alert, gdy obserwowane urządzenie z listy poniżej zgłasza unavailable lub
+      unknown — albo, dla device_tracker, not_home. Domyślnie włączone, ale nic nie
+      obserwuje, dopóki nie wskażesz encji poniżej. Krytyczny: wysyłany także w
+      godzinach ciszy.
+  alert_offline_entities:
+    name: Urządzenia obserwowane pod kątem offline
+    description: >-
+      Encje sprawdzane przez kontrolę offline, po jednym entity_id na wpis. Lista
+      zaczyna się pusta. Obserwuj stale obecną infrastrukturę — bramę, NAS, kamerę
+      — a nie tracker telefonu, który znika za każdym razem, gdy ktoś wychodzi.
   alert_quiet_hours:
     name: Godziny ciszy alertów (HH:MM-HH:MM)
     description: >-
-      W tym oknie alerty niekrytyczne (bateria, temperatura, otwarte w nocy) są
-      wstrzymywane; krytyczne alerty o wycieku wody są wysyłane zawsze. Format
+      W tym oknie alerty niekrytyczne (bateria, temperatura, wilgotność, CO2,
+      otwarte w nocy) są wstrzymywane; krytyczne — wyciek wody i przejście
+      obserwowanego urządzenia w offline — są wysyłane zawsze. Format
       np. 22:00-07:00. Zostaw puste, aby wyłączyć godziny ciszy (domyślnie).
   prompt_api:
     name: Prompt API (integracja AI Agent)
