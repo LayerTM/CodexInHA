@@ -22,6 +22,38 @@ const path = require('node:path');
 
 const PROMPT_MODES = new Set(['read', 'write']);
 
+// What bounds a run. The two profiles have two different answers, and each one
+// is declared once, here.
+//
+// The CLI's Linux sandbox is bubblewrap, and bubblewrap needs a user namespace
+// an add-on container is not allowed to create — measured on both architectures
+// inside a real add-on ("No permissions to create a new namespace" on amd64,
+// "Permission denied" on aarch64), where asking for it only costs a warning at
+// every start. So for everything bubblewrap would have bounded — running a
+// command, reaching the network — the boundary here is the container itself.
+//
+// The WRITE path is not one of those things, and that is the distinction this
+// file used to miss. `--sandbox read-only` also makes the CLI refuse an
+// apply_patch write in-process, with no bubblewrap involved. Measured
+// 2026-09-18 inside this add-on (aarch64, codex-cli 0.155.0) with the restricted
+// profile below and an apply_patch forced at a path outside the run's working
+// directory: `read-only` answered "patch rejected: writing is blocked by
+// read-only sandbox" and no file appeared, while `danger-full-access` created
+// the file in /homeassistant — the user's own configuration directory. The flag
+// therefore buys real containment on the one path that can change the user's
+// Home Assistant, so a prompt run asks for it.
+
+// The console is the owner's own interactive session, and the add-on warns him
+// so at every start. It is unrestricted by design: this states the boundary it
+// really has instead of asking for one this container cannot build.
+const CONSOLE_SANDBOX_ARGS = ['--sandbox', 'danger-full-access'];
+
+// A prompt-API run is nobody's session: it is one request from the companion
+// integration, answered in an empty private directory it never needs to write
+// to. Read-only is what refuses the write above.
+const PROMPT_SANDBOX_ARGS = ['--sandbox', 'read-only'];
+
+
 // Features a prompt run keeps at their built-in default. Each one is here
 // because a prompt run is measured to need it; nothing else is kept.
 //
@@ -29,9 +61,14 @@ const PROMPT_MODES = new Set(['read', 'write']);
 // with the host off the model sees no Home Assistant tool at all. The host's
 // script environment has no require, fetch or process: asked to read files,
 // reach the network or call a tool outside enabled_tools, every attempt failed
-// and nothing reached the disk or the network. Tools the host still lists
-// (apply_patch, spawn_agent) are refused by the read-only sandbox and by the
-// ephemeral session respectively.
+// and nothing reached the disk or the network.
+//
+// The host also lists tools of its own, and they are refused by different
+// things. spawn_agent: by the ephemeral session. apply_patch: by
+// PROMPT_SANDBOX_ARGS and by nothing else — measured 2026-09-18 in this add-on
+// with no Home Assistant tool server and no enabled_tools at all, the model was
+// still offered apply_patch and still called it, and under a permissive sandbox
+// the file was written outside the working directory.
 const KEEP_FEATURES = new Set(['code_mode_host']);
 
 // Features that must be off in every prompt run whatever KEEP_FEATURES says:
@@ -153,7 +190,7 @@ function restrictedArgv(features, workDir) {
     '--ignore-rules',
     '--strict-config',
     '--color', 'never',
-    '--sandbox', 'read-only',
+    ...PROMPT_SANDBOX_ARGS,
     '-c', 'approval_policy="never"',
     '-c', 'web_search="disabled"',
     '-c', 'check_for_update_on_startup=false',
@@ -290,11 +327,18 @@ const BYPASS_FLAG = '--dangerously-bypass-approvals-and-sandbox';
  * The argv (without the executable) of the interactive console session.
  * Unrestricted by design: the owner's own session, like the Claude console.
  *
+ * Either way the console states the boundary it actually has: with the bypass
+ * flag, which implies it, and without it through CONSOLE_SANDBOX_ARGS — so
+ * neither mode asks for a sandbox this container cannot build. The bypass option
+ * still means what it says: it is what drops the approval prompts. A prompt-API
+ * run is the other profile entirely; it keeps the read-only sandbox.
+ *
  * @param {{bypass_permissions?: boolean, extra_args?: unknown}} options  add-on options
  */
 function consoleArgs(options) {
   const args = [];
   if (options && options.bypass_permissions === true) args.push(BYPASS_FLAG);
+  else args.push(...CONSOLE_SANDBOX_ARGS);
   const extra = options && Array.isArray(options.extra_args) ? options.extra_args : [];
   for (const a of extra) {
     if (typeof a === 'string' && a !== '') args.push(a);
@@ -305,6 +349,8 @@ function consoleArgs(options) {
 module.exports = {
   KEEP_FEATURES,
   restrictedArgv,
+  CONSOLE_SANDBOX_ARGS,
+  PROMPT_SANDBOX_ARGS,
   askLaunch,
   NEVER_KEEP,
   HA_SERVER,

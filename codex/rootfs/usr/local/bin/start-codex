@@ -3,9 +3,10 @@
 # start-codex: runs inside the "codex" tmux window.
 # Launches the Codex CLI with the configured flags; on exit it shows a small
 # menu so the session survives (restart / shell / update) instead of dying.
-# Deliberately s6-independent (no with-contenv): it only needs
-# /data/options.json, so it works the same under s6, a tmux respawn, a shell tab
-# or a bare container.
+# Deliberately s6-independent (no with-contenv): it reads its options through
+# bashio at run time, so it works the same under s6, a tmux respawn or a shell
+# tab. It is not standalone — bashio fetches the options from the Supervisor API
+# (see addon-config.sh), so outside the add-on it has nothing to read.
 # ==============================================================================
 
 # shellcheck source=../lib/addon-config.sh
@@ -27,7 +28,18 @@ fi
 build_default_args() {
     codex_args=()
     if bashio::config.true 'bypass_permissions'; then
+        # Implies the boundary below, and drops the approval prompts as well.
         codex_args+=(--dangerously-bypass-approvals-and-sandbox)
+    else
+        # The console is the owner's own session, and the boundary around it is
+        # the container: the CLI's Linux sandbox is bubblewrap, and an add-on
+        # container may not create the user namespace it needs, so asking for it
+        # only produces a warning at every start. Approvals stay on in this mode
+        # — that is what the option switches. This is the CONSOLE's answer only:
+        # a prompt-API run keeps a read-only sandbox, which does refuse a write
+        # without bubblewrap (app/adapter/launch.js, PROMPT_SANDBOX_ARGS). A test
+        # holds this line and CONSOLE_SANDBOX_ARGS to the same words.
+        codex_args+=(--sandbox danger-full-access)
     fi
     local model
     model=$(bashio::config 'model')

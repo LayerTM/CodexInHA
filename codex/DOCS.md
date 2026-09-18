@@ -62,7 +62,7 @@ reconciled on every start.
 |---|---|
 | `api_key` | API-key authentication (see above). Stored encrypted by the Supervisor. |
 | `ha_token` | A Home Assistant Long-Lived Access Token (Profile → Security). Enables dashboard screenshots, `hass-cli`, `hass-mcp` — including its tools for reading **and editing** Lovelace dashboards — and WebSocket/REST access as you. Persists across updates. Optional. |
-| `bypass_permissions` | Start Codex with `--dangerously-bypass-approvals-and-sandbox` (fully autonomous). |
+| `bypass_permissions` | Start Codex with `--dangerously-bypass-approvals-and-sandbox` (fully autonomous): it stops asking you to approve what it does. The console runs unsandboxed either way — it is your own session, and the boundary around it is the add-on container. This option decides the approval prompts. The prompt API is a different thing entirely: it always runs read-only (see below). |
 | `auto_update` | Update the CLI at every add-on start. Manual `update-codex` always works. |
 | `model` | Model override. Leave empty for the Codex CLI default. |
 | `custom_instructions` | Text appended to the built-in HA context (`AGENTS.md`). |
@@ -211,11 +211,29 @@ deliberately much more restricted than the interactive console:
   the token and shares it with the integration automatically through Supervisor
   discovery — you configure nothing.
 - **Each prompt runs a fresh, stateless, read-only Codex** with deny-by-default
-  permissions: shell, file, and web tools are removed entirely, and the child
-  process gets **none** of your Supervisor or Home Assistant credentials in its
-  environment. Home Assistant access, when enabled, is only through the
+  permissions: shell and web tools are removed entirely, file writes are refused
+  by the read-only sandbox, and the child process gets **none** of your
+  Supervisor or Home Assistant credentials in its environment. Home Assistant
+  access, when enabled, is only through the
   **Model Context Protocol Server** integration, so Codex can see and touch
   **only the entities you have exposed to Assist**.
+- **What bounds such a run, exactly.** A read-only sandbox first: the CLI itself
+  refuses a file write in that mode, measured inside this add-on — with the
+  sandbox read-only a forced patch was rejected ("writing is blocked by
+  read-only sandbox") and nothing was written, and that is the mode every prompt
+  run asks for. Around it: an empty, private working directory created for the
+  run and removed with it; the user's own configuration, project instructions
+  and rules are not read (`--ignore-user-config`, `--ignore-rules`,
+  `--strict-config`, `project_doc_max_bytes=0`); nothing may be approved mid-run
+  (`approval_policy="never"`); the web is off (`web_search="disabled"`); and
+  every tool that runs a command, reaches the network or loads something you
+  installed is switched off by name. On the Home Assistant side the run is given
+  a tool server carrying only the tools that request allows, and everything it
+  sends passes the add-on's own loopback relay, which forwards nothing but that
+  tool server and a camera snapshot, never hands out your Home Assistant token,
+  and writes each call to the audit log. What the sandbox cannot add here is
+  process-level isolation: the CLI's Linux sandbox needs a privilege an add-on
+  container does not have, so the enclosing boundary is the container itself.
 - **Actions require confirmation, and the confirmed action is executed from the
   validated request only.** A read request that would change state returns a
   *proposal* rather than acting; the integration asks you to confirm; only then
