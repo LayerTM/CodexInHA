@@ -57,6 +57,20 @@ def run() -> int:
         else:
             print(f"ok: {case} (exit {actual})")
 
+    # A repository file the check cannot READ is "could not check" (2), never a
+    # finding and never a pass: bytes that are not UTF-8 are not a wrong store,
+    # they are a store nobody looked at.
+    with tempfile.TemporaryDirectory() as tmp:
+        root = Path(tmp)
+        build(root, None, ADDON_CONFIG)
+        (root / "repository.yaml").write_bytes(b"name: \xff\xfe not utf-8\n")
+        actual = main(["store_repository_check.py", str(root)])
+    if actual != 2:
+        print(f"FAIL: a repository file that cannot be decoded: expected exit 2, got {actual}")
+        failures += 1
+    else:
+        print("ok: a repository file that cannot be decoded (exit 2)")
+
     # A root that does not exist must be "could not check" (2), never "valid".
     with tempfile.TemporaryDirectory() as tmp:
         missing = Path(tmp) / "absent"

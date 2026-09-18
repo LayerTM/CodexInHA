@@ -20,9 +20,11 @@ It is discovered the way the Supervisor discovers add-ons (store/data.py): every
 `config.yaml`/`.yml`/`.json` under the root whose path contains no dot-prefixed
 part and no `rootfs` part.
 
-FAIL CLOSED. A root that cannot be read or a file that cannot be decoded is a
-failure, not a pass: "I could not look" and "I looked and it was a store" must
-not share an exit code.
+FAIL CLOSED, and in two different ways, because "I could not look" and "I looked
+and it is wrong" are not the same answer. A root or a file the check cannot READ
+(an OSError, bytes that are not UTF-8) ends the check: exit 2. A file it read and
+found wanting — missing, not a mapping, no `name`, malformed YAML or JSON — is a
+finding about the repository: exit 1. Neither shares an exit code with success.
 
 Usage:
     python .github/scripts/store_repository_check.py [path]   # default: .
@@ -51,8 +53,15 @@ def load_config_file(path: Path) -> Any:
     return yaml.safe_load(text)
 
 
+class CannotCheck(Exception):
+    """The check could not be performed — never confused with a clean result."""
+
+
 def check_repository_file(root: Path) -> list[str]:
-    """Apply the Supervisor's validation of the repository file."""
+    """Apply the Supervisor's validation of the repository file.
+
+    Raises CannotCheck when the file exists but cannot be read at all.
+    """
     for suffix in CONFIG_SUFFIXES:
         candidate = root / f"repository{suffix}"
         if candidate.exists():
@@ -65,8 +74,10 @@ def check_repository_file(root: Path) -> list[str]:
 
     try:
         config = load_config_file(candidate)
-    except (OSError, UnicodeDecodeError, yaml.YAMLError, json.JSONDecodeError) as err:
-        return [f"{candidate.name}: cannot be read as a configuration file: {err}"]
+    except (OSError, UnicodeDecodeError) as err:
+        raise CannotCheck(f"{candidate.name} cannot be read: {err}") from err
+    except (yaml.YAMLError, json.JSONDecodeError) as err:
+        return [f"{candidate.name}: is not valid YAML or JSON: {err}"]
 
     if not isinstance(config, dict):
         return [f"{candidate.name}: must be a mapping, got {type(config).__name__}"]
@@ -112,7 +123,7 @@ def main(argv: list[str]) -> int:
     try:
         findings = check_repository_file(root)
         addons = find_addons(root)
-    except OSError as err:
+    except (OSError, CannotCheck) as err:
         print(f"store-repository: cannot scan {root}: {err}", file=sys.stderr)
         return 2
 
