@@ -45,7 +45,7 @@ per-session setup:
 | `ha-state [entity\|domain.]` | Query entity states, e.g. `ha-state light.kitchen`, `ha-state light.` |
 | `ha-shot <path> [out.png] [WxH]` | Screenshot a Lovelace dashboard to PNG, e.g. `ha-shot /lovelace/0 /tmp/d.png 1280x800` (needs **HA Token**) |
 | `ha-usage [days]` | Summarize Codex token usage (today / N days / all-time, per model) from the console's session history. This add-on reports no cost, so the figures are token counts, never a dollar amount |
-| `ha-audit [N]` | Show what Codex has changed: service calls, edits under your config, Core restarts, safety backups, and every change made through a connected tool server (dashboard edits included). Reads are not recorded; a preview is marked `(dry-run)` |
+| `ha-audit [N]` | Show what Codex has changed: service calls, edits under your config, Core restarts, safety backups, and every change made through a connected tool server (dashboard edits included). Reads are not recorded; a preview is marked `(dry-run)` and a call that failed is marked `(failed)` |
 | `yq` | Edit YAML config files |
 | `hass-cli` | Entity/service queries (needs **HA Token**) |
 | Playwright MCP | Browser automation tools; Chromium is preinstalled |
@@ -247,9 +247,11 @@ deliberately much more restricted than the interactive console:
   Home Assistant call a request makes is written to the audit log (`ha-audit`)
   with the arguments it used and what Home Assistant answered — written when Home
   Assistant answers it, where the call passes rather than by the agent itself, so
-  the record does not depend on the agent keeping it. Read the limit with it: in
-  this version a write to that log that fails — a full or read-only `/data` —
-  is not detected, so an action can happen with no line and nothing saying so.
+  the record does not depend on the agent keeping it. A call that failed is recorded too, marked `(failed)`, and a call still
+  unanswered when the add-on stops is settled rather than dropped. Read the limit
+  with it: in this version a write to that log that fails — a full or read-only
+  `/data` — is not detected, so an action can happen with no line and nothing
+  saying so.
 - **Its own model — optionally faster for voice.** The companion chat can run a
   different model from the interactive console (`chat_model`) — e.g. a quicker,
   cheaper one for snappy Assist replies — and spoken (voice) turns can use an even

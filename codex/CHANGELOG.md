@@ -15,7 +15,9 @@ First version of the add-on.
   allows. A Home Assistant call it makes is written to the audit log
   (`ha-audit`) with its arguments when Home
   Assistant answers it, recorded where the call passes rather than by the agent
-  itself. A write to that log that fails is not detected in this version.
+  itself; a call that failed is marked `(failed)`, and one still unanswered when
+  the add-on stops is settled instead of vanishing. A write to that log that
+  fails is not detected in this version.
 - The console's usage is reported per day and per model. This CLI reports no
   cost anywhere, so the add-on publishes none and has no daily budget.
 - Session transcripts are kept for `transcript_retention_days` days (30 by
