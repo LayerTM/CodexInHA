@@ -33,6 +33,16 @@ codex/core/assemble.sh /tmp/core/core.tar codex /tmp/addon
 cd /tmp/addon/app && "/tmp/addon/install-tools/npm-ci-checked.sh" && npm test
 ```
 
+The add-on's own tests need none of that and run straight from a checkout, with
+no dependencies to install:
+
+```sh
+cd codex/app && node --test test/
+```
+
+`npm run lint` and `npm run typecheck` do need the assembled tree: eslint and
+typescript arrive with the core, not with this repository.
+
 ## Licence
 
 [MIT](LICENSE)
