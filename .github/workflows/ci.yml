@@ -13,8 +13,13 @@ jobs:
   # The tests run against the tree the image ships: this repository's files
   # merged with the pinned ha-agent-core release, by the same script the image
   # build uses. A test therefore sees the adapter exactly as the core loads it.
-  addon:
-    name: Add-on
+  #
+  # Tests and the linters are two jobs, and their names are the ones main's
+  # branch protection requires: a job's name IS the check a pull request is
+  # gated on, so renaming one takes a gate away from every later pull request,
+  # not just this one.
+  tests:
+    name: Tests
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
@@ -33,6 +38,24 @@ jobs:
       - name: Run tests
         working-directory: ${{ runner.temp }}/addon/app
         run: npm test
+
+  lint-js:
+    name: JS lint & types
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: "26"
+      - name: Assemble the add-on with its pinned core
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          .github/scripts/core_archive.sh "${RUNNER_TEMP}/core"
+          codex/core/assemble.sh "${RUNNER_TEMP}/core/core.tar" codex "${RUNNER_TEMP}/addon"
+      - name: Install dependencies
+        working-directory: ${{ runner.temp }}/addon/app
+        run: '"${RUNNER_TEMP}/addon/install-tools/npm-ci-checked.sh"'
       - name: Lint (eslint)
         working-directory: ${{ runner.temp }}/addon/app
         run: npm run lint
