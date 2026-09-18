@@ -19,9 +19,9 @@ export PATH="/data/npm/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sb
 # Working directory: the Home Assistant configuration when it is there, the
 # add-on's own storage otherwise.
 if [ -d /homeassistant ] && [ -w /homeassistant ]; then
-    cd /homeassistant
+    cd /homeassistant || bashio::exit.nok "Cannot enter /homeassistant"
 else
-    cd /data/workdir
+    cd /data/workdir || bashio::exit.nok "Cannot enter /data/workdir"
 fi
 
 build_default_args() {

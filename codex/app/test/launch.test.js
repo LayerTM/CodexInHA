@@ -244,6 +244,20 @@ test('the one-shot question denies everything a prompt run denies', () => {
   }
 });
 
+// Compared on the argv both calls actually produce, not on the feature list
+// they were handed: the point of the shared profile is that neither path can
+// add or drop a switch of its own.
+test('the one-shot question is the prompt profile with nothing added', () => {
+  const ask = L.askLaunch({ features: FEATURES, workDir: '/tmp/ask' });
+  const prompt = L.promptLaunch({
+    mode: 'read', features: FEATURES, workDir: '/tmp/ask', schemaFile: '/tmp/s.json',
+  });
+  const withoutSchema = [...prompt.argv];
+  const at = withoutSchema.indexOf('--output-schema');
+  withoutSchema.splice(at, 2);
+  assert.deepEqual(ask.argv, withoutSchema);
+});
+
 test('the one-shot question carries no schema, no image and no Home Assistant server', () => {
   const { argv } = L.askLaunch({ features: FEATURES, workDir: '/tmp/ask' });
   assert.ok(!argv.includes('--output-schema'));
