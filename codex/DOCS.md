@@ -211,9 +211,10 @@ deliberately much more restricted than the interactive console:
   the token and shares it with the integration automatically through Supervisor
   discovery — you configure nothing.
 - **Each prompt runs a fresh, stateless, read-only Codex** with deny-by-default
-  permissions: shell, file, and web tools are removed entirely, and the child
-  process gets **none** of your Supervisor or Home Assistant credentials in its
-  environment. Home Assistant access, when enabled, is only through the
+  permissions: shell and web tools are removed entirely, file writes are refused
+  by the read-only sandbox, and the child process gets **none** of your
+  Supervisor or Home Assistant credentials in its environment. Home Assistant
+  access, when enabled, is only through the
   **Model Context Protocol Server** integration, so Codex can see and touch
   **only the entities you have exposed to Assist**.
 - **What bounds such a run, exactly.** A read-only sandbox first: the CLI itself
