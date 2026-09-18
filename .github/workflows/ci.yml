@@ -93,6 +93,26 @@ jobs:
       - name: Every executable script has a linter
         run: python .github/scripts/lint_targets.py
 
+  # A user does not install the add-on file by file: they paste this repository's
+  # URL into the add-on store, and the store decides whether the clone is a store
+  # at all before reading anything of ours. Nothing else here looks at the root —
+  # every linter below is handed the add-on directory.
+  store-repository:
+    name: Add-on store repository
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.14"
+      - name: Install the YAML reader the Supervisor uses
+        run: pip install --disable-pip-version-check PyYAML==6.0.3
+      - name: Self-test the check
+        working-directory: .github/scripts
+        run: python test_store_repository_check.py
+      - name: This repository is a valid add-on store
+        run: python .github/scripts/store_repository_check.py .
+
   addon-linter:
     name: Add-on linter
     runs-on: ubuntu-latest
