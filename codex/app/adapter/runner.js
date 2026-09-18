@@ -244,9 +244,15 @@ function createDecoder(spec) {
     }
     // A completed turn ends the run, and whether it succeeded is decided in ONE
     // place: events.js, which already holds what counts as a complete turn and
-    // as an answer. The process has not exited yet, so the status it is asked
-    // about is the one it would have if nothing else went wrong; the core
-    // checks the real one itself.
+    // as an answer.
+    //
+    // The zero is not the child's exit status: the child is still running, and
+    // a decoder that reads its output line by line never learns how it exits.
+    // So the exit-status branch of that judgement cannot fire here, and nothing
+    // else catches it either — core 0.5.0's close handler reads the result
+    // before the code (`prompt/run.js`), so a run that answered and THEN exited
+    // non-zero is reported as an answer. Worth knowing when reading that
+    // branch; it is not dead in the tests, which do know the status.
     if (parsed && parsed.type === 'turn.completed') {
       done = true;
       const outcome = decoder.end(0);

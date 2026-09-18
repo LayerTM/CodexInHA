@@ -48,7 +48,9 @@ jobs:
         run: |
           python3 "${GITHUB_WORKSPACE}/.github/scripts/lint_targets.py" \
             --repo "${GITHUB_WORKSPACE}" --list node --root codex > "${RUNNER_TEMP}/node-targets"
-          xargs -a "${RUNNER_TEMP}/node-targets" ./app/node_modules/.bin/eslint
+          # --max-warnings=0: a file ESLint has no configuration for is only a
+          # warning and would otherwise pass (measured on ESLint 9).
+          xargs -a "${RUNNER_TEMP}/node-targets" ./app/node_modules/.bin/eslint --max-warnings=0
 
   # Every executable this repository ships is taken by one of the linters below,
   # decided by its interpreter. A script that belongs to none fails this job:

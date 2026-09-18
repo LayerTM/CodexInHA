@@ -10,21 +10,53 @@
 // This config is read from the assembled tree's root, where app/ and rootfs/
 // sit side by side; it is not part of rootfs/, so it is never shipped in the
 // image.
+//
+// The files are found the same way `.github/scripts/lint_targets.py` finds
+// them — by the interpreter on their first line — because a list written by
+// hand here would be a second place declaring which files are Node, and the
+// two would drift. These files have no extension, and a directory glob does
+// not enable linting for one, so each is named from what was found.
+// Measured on ESLint 9: a file ESLint has no configuration for is reported as
+// a WARNING and the run still exits 0, so the step that runs this config also
+// passes --max-warnings=0 and a file that slipped past both fails loudly.
 
+const fs = require('node:fs');
+const path = require('node:path');
 const js = require('./app/node_modules/@eslint/js');
 const globals = require('./app/node_modules/globals');
 
+const BIN = 'rootfs/usr/local/bin';
+
+function nodeExecutables() {
+  let names;
+  try {
+    names = fs.readdirSync(BIN);
+  } catch {
+    return [];
+  }
+  return names
+    .filter((name) => {
+      let head;
+      try {
+        head = fs.readFileSync(path.join(BIN, name), 'utf8').slice(0, 128).split('\n', 1)[0];
+      } catch {
+        return false;
+      }
+      return /^#!\s*\S*\b(env\s+)?node\b/.test(head);
+    })
+    .sort()
+    .map((name) => `${BIN}/${name}`);
+}
+
 module.exports = [
   {
-    // Only the executables this add-on writes. Everything else here belongs to
-    // the core or is not JavaScript.
+    // Everything else in the assembled tree belongs to the core, is not
+    // JavaScript, or has its own configuration inside app/.
     ignores: ['app/**', 'ha-tools/**', 'install-tools/**', 'core/**'],
   },
   js.configs.recommended,
   {
-    // Named one by one: these files have no extension, so a directory glob does
-    // not pick them up.
-    files: ['rootfs/usr/local/bin/agent-ask'],
+    files: nodeExecutables(),
     languageOptions: {
       ecmaVersion: 2024,
       sourceType: 'commonjs',
