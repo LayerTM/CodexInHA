@@ -1,5 +1,5 @@
 name: "Codex"
-version: "0.1.0"
+version: "0.1.1"
 slug: codex
 description: "Codex AI assistant embedded in Home Assistant — web console with tabs, clipboard, file attachments, browser testing, and a bundled HA skill pack"
 url: "https://github.com/LayerTM/CodexInHA"
