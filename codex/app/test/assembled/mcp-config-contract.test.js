@@ -48,6 +48,12 @@ test('what writeMcpConfig wrote is what relay reads, byte for byte', async () =>
     assert.ok(back, `relay must read the file writeMcpConfig wrote: ${JSON.stringify(bearer)}`);
     assert.equal(back.token, bearer, `bearer changed in transit: ${JSON.stringify(bearer)}`);
     assert.equal(back.url, URL);
+    // A value the writer puts in the file and the reader silently drops is a divergence with no
+    // voice: both halves keep working, and the extra value simply never crosses. Counting keys
+    // rather than naming them keeps the names out of the contract, which stays about values.
+    const onDisk = JSON.parse(fs.readFileSync(file, 'utf8'));
+    assert.equal(Object.keys(onDisk).length, Object.keys(back).length,
+      `the file carries a value the relay drops: ${JSON.stringify(bearer)}`);
     fs.rmSync(dir, { recursive: true, force: true });
   }
 });
