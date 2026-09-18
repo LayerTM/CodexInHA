@@ -64,8 +64,8 @@ module.exports = {
     // The CLI takes its MCP servers on the command line, one setting at a time,
     // so a run's server is registered by launch.js rather than by a file the CLI
     // reads. What is kept here is the endpoint itself, for the run that is about
-    // to start: the core writes it once per relay token and names the file in
-    // the run spec.
+    // to start: the core writes it into that run's own directory, names the file
+    // in the run spec, and removes the directory when the run ends.
     async writeMcpConfig({ dir, url, bearer }) {
       await fsp.mkdir(dir, { recursive: true, mode: 0o700 });
       const file = path.join(dir, 'ha-mcp.json');
@@ -75,23 +75,6 @@ module.exports = {
       }
       await fsp.writeFile(file, JSON.stringify({ url, token: bearer }, null, 2), { mode: 0o600 });
       return file;
-    },
-    // No prompt run of this engine is audited per tool call, so this is false
-    // and the core does not start the prompt API at all.
-    //
-    // The record the core requires — which Home Assistant tool a chat request
-    // called, with which arguments — is written by the engine's own hook in
-    // engines that have one. Every hook is a command the run would execute, so
-    // a prompt run here switches all of them off; the restrictions it needs are
-    // on its command line instead. Nothing else writes that record today: the
-    // relay forwards the call without logging it.
-    //
-    // Saying so costs the prompt API, which is the answer this codebase already
-    // gives when a promise cannot be kept (the same file refuses a USD budget
-    // an engine cannot report). When the record has a home that does not depend
-    // on the engine, this becomes true and the console is unaffected either way.
-    hasAuditHook() {
-      return false;
     },
     // Prompt runs are `--ephemeral`: the CLI writes no session file for them
     // (measured on CLI 0.154.0), so there is nothing of an earlier version to

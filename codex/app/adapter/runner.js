@@ -356,8 +356,8 @@ function createDecoder(spec) {
     // The zero is not the child's exit status: the child is still running, and
     // a decoder that reads its output line by line never learns how it exits.
     // So the exit-status branch of that judgement cannot fire here, and nothing
-    // else catches it either — core 0.5.0's close handler reads the result
-    // before the code (`prompt/run.js`), so a run that answered and THEN exited
+    // else catches it either — the core's close handler reads the result before
+    // the code (`prompt/run.js`), so a run that answered and THEN exited
     // non-zero is reported as an answer. Worth knowing when reading that
     // branch; it is not dead in the tests, which do know the status.
     if (parsed && parsed.type === 'turn.completed') {
