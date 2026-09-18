@@ -232,7 +232,10 @@ function removeRunDir(dir) {
   } catch { /* already gone */ }
 }
 
+// The schema the run is held to, as a file — or null when the core gave none,
+// which it does for an answer this engine could not be given a schema for.
 function writeSchema(dir, schema) {
+  if (typeof schema !== 'string' || schema === '') return null;
   const file = path.join(dir, 'schema.json');
   fs.writeFileSync(file, schema, { mode: 0o600 });
   return file;

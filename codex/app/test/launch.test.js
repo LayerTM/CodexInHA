@@ -157,6 +157,19 @@ test('the console launcher declares the same boundary', () => {
   assert.ok(script.includes(L.BYPASS_FLAG), 'the bypass option, in the console launcher');
 });
 
+test('an answer the core gave no schema for carries no schema flag', () => {
+  // This engine takes only closed schemas, so the core withholds one for an
+  // answer that contains an open object. A run then answers in prose, and a
+  // flag pointing at a file that was never written would fail it before it
+  // started.
+  for (const schemaFile of [undefined, null, '']) {
+    const { argv } = launch({ schemaFile });
+    assert.ok(!argv.includes('--output-schema'), JSON.stringify(schemaFile));
+    assert.equal(argv.at(-1), '-');
+  }
+  assert.ok(launch().argv.includes('--output-schema'), 'a schema is still passed when there is one');
+});
+
 test('write mode uses the same restrictions as read mode', () => {
   assert.deepEqual(launch({ mode: 'write' }).argv, launch().argv);
 });
