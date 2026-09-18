@@ -10,18 +10,23 @@
 # copy that runs lives in /data, so an update from the console survives a
 # restart and an add-on update. Its state (login, sessions, configuration) is a
 # separate directory, which an update never touches.
-IMAGE_PREFIX=/opt/codex-npm
-ENGINE_NPM_PREFIX=/data/npm
-ENGINE_BIN_DIR=/data/npm/bin
-ENGINE_PROMPT_BIN=/data/npm/bin/codex
+# The paths themselves are declared once, in codex-env.sh, which the launchers
+# and every shell tab also read; the core's contract is derived from them.
+# shellcheck source=./codex-env.sh
+. /usr/local/lib/codex-env.sh
+
+IMAGE_PREFIX=${CODEX_IMAGE_PREFIX}
+ENGINE_NPM_PREFIX=${CODEX_CLI_PREFIX}
+ENGINE_BIN_DIR=${CODEX_CLI_BIN}
+ENGINE_PROMPT_BIN=${CODEX_CLI_BIN}/codex
 ENGINE_INSTRUCTIONS_SOURCE=/usr/share/codex-ha/AGENTS.md
 ENGINE_INSTRUCTIONS_FILE=AGENTS.md
-ENGINE_STATE_DIR=/data/codex
-ENGINE_SKILLS_DIR=/data/codex/skills
+ENGINE_STATE_DIR=${CODEX_STATE_DIR}
+ENGINE_SKILLS_DIR=${CODEX_STATE_DIR}/skills
 
 # The home prompt-API runs use: it holds nothing but a link to the console's
 # login, so a run reads none of the user's instructions or configuration.
-ENGINE_PROMPT_HOME=/data/codex-prompt
+ENGINE_PROMPT_HOME=${CODEX_PROMPT_HOME}
 
 codex_version() {
     "$1" --version 2>/dev/null | awk '/^codex-cli /{print $2}'

@@ -4,9 +4,8 @@
 # instead of the newest one (a rollback).
 set -o pipefail
 
-export CODEX_HOME=/data/codex
-export NPM_CONFIG_PREFIX=/data/npm
-export PATH="/data/npm/bin:${PATH}"
+# shellcheck source=../lib/codex-env.sh
+source /usr/local/lib/codex-env.sh
 
 target="${1:-}"
 

@@ -12,10 +12,10 @@
 # shellcheck source=../lib/addon-config.sh
 source /usr/local/lib/addon-config.sh
 
-# The console's own home: the sign-in, the sessions and the user's instructions.
-export CODEX_HOME=/data/codex
-export NPM_CONFIG_PREFIX=/data/npm
-export PATH="/data/npm/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+# The console's own home, the CLI's directory and the npm prefix: one file
+# declares them, and a shell tab gets the same ones through /etc/profile.d.
+# shellcheck source=../lib/codex-env.sh
+source /usr/local/lib/codex-env.sh
 
 # Working directory: the Home Assistant configuration when it is there, the
 # add-on's own storage otherwise.
