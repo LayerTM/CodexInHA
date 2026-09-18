@@ -41,7 +41,7 @@ per-session setup:
 | `ha-check` | Validate the HA configuration (run before any restart) |
 | `ha-state [entity\|domain.]` | Query entity states, e.g. `ha-state light.kitchen`, `ha-state light.` |
 | `ha-shot <path> [out.png] [WxH]` | Screenshot a Lovelace dashboard to PNG, e.g. `ha-shot /lovelace/0 /tmp/d.png 1280x800` (needs **HA Token**) |
-| `ha-usage [days]` | Summarize Codex token usage (today / N days / all-time, per model) from the console's session history. This add-on reports no cost, so the figures are token counts, never a dollar amount. The Prompt API does not run in this version, so it contributes nothing |
+| `ha-usage [days]` | Summarize Codex token usage (today / N days / all-time, per model) from the console's session history. This add-on reports no cost, so the figures are token counts, never a dollar amount |
 | `ha-audit [N]` | Show what Codex has changed: service calls, edits under your config, Core restarts, safety backups, and every change made through a connected tool server (dashboard edits included). Reads are not recorded; a preview is marked `(dry-run)` |
 | `yq` | Edit YAML config files |
 | `hass-cli` | Entity/service queries (needs **HA Token**) |
@@ -79,8 +79,8 @@ reconciled on every start.
 | `remote_control` | Adds a tab running Codex's own remote-control command: drive this session from the ChatGPT mobile app / chatgpt.com. Requires a full `codex login`; an API key is not sufficient. It runs in the same folder as the Codex tab, so accept Codex's trust prompt there once first. |
 | `monitoring_interval_hours` | Opt-in proactive monitoring: every N hours Codex reviews the error log and config and notifies you only if it finds something (0 = off). |
 | `proactive_alerts` + `alert_*` | Opt-in **deterministic** anomaly alerts (no Codex, no plan usage): notify on a water leak, door/window open at night, low battery, temperature out of band, high CO2, humidity out of band, or a watched device/internet gateway going offline. See *Proactive alerts* below. |
-| `prompt_api` | Would serve the Prompt API for the companion **AI Agent** (`claude_ha`) integration. **It does not start in this version, whatever this is set to** — see *The companion integration* below for why. |
-| `api_token` | Optional fixed bearer token for the Prompt API. Leave empty — the add-on generates one and hands it to the integration via discovery. Idle while the Prompt API does not start. |
+| `prompt_api` | Serve the secure Prompt API for the companion **AI Agent** (`claude_ha`) integration (on by default). See *The companion integration* below. |
+| `api_token` | Optional fixed bearer token for the Prompt API. Leave empty — the add-on generates one and hands it to the integration via discovery. |
 | `prompt_ha_token` | Optional HA token used only by Prompt-API sessions to read state through the MCP Server integration. Best practice: a dedicated non-admin user's token. Falls back to `ha_token`. |
 
 This add-on reports no cost for any run (the CLI does not report a dollar
@@ -200,15 +200,6 @@ to Codex from **Assist** (text and voice) and from an `ask` service in
 automations — without opening the console. It talks to this add-on over a
 dedicated, locked-down HTTP endpoint called the **Prompt API**.
 
-> **In this version the Prompt API does not start.** Every Home Assistant action
-> a chat request takes has to be recorded with the arguments it used, and in this
-> add-on nothing writes that record yet: a Codex request runs with every hook
-> switched off, because a hook is a command the request would be able to run.
-> Rather than answer chat requests unrecorded, the add-on does not serve them at
-> all; the log says so at start-up. The console is not affected. When the record
-> has a home that does not depend on the CLI, this is switched on and the section
-> below describes what you get.
-
 The Prompt API is designed for running Codex on **untrusted input** (whatever a
 chat message or automation sends) with limited Home Assistant access, so it is
 deliberately much more restricted than the interactive console:
@@ -232,10 +223,11 @@ deliberately much more restricted than the interactive console:
   that call is driven solely by the validated intent, never by the original
   free-form message, so untrusted text never reaches the state-changing path.
 - Rate-limited, concurrency-capped, time-bounded, output-capped, and
-  secret-redacted; no transcript of a request is kept once it has answered. Each
-  Home Assistant call also has to reach the audit log (`ha-audit`) with the
-  arguments it used — that is the one piece missing here, and the reason this
-  API does not start (see the note above).
+  secret-redacted; no transcript of a request is kept once it has answered. Every
+  Home Assistant call a request makes also reaches the audit log (`ha-audit`)
+  with the arguments it used and what Home Assistant answered, written where the
+  call passes rather than by the agent itself — so a chat request cannot touch
+  your home without leaving that record.
 - **Its own model — optionally faster for voice.** The companion chat can run a
   different model from the interactive console (`chat_model`) — e.g. a quicker,
   cheaper one for snappy Assist replies — and spoken (voice) turns can use an even
