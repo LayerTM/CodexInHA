@@ -14,6 +14,12 @@ The schema is the oracle; the translations are checked against it, never against
 each other, so adding an option is what makes this fail — in every language at
 once, which is also how a language falls behind unnoticed.
 
+A quotation mark is checked the same way: a text that opens a quote with a
+typographic mark closes it with that mark's own partner. Measured on this
+repository before this check existed: the Polish file opened nine quotes with
+the Polish low mark and closed none of them — every one ended on a plain ASCII
+double quote, so a Polish reader saw an unclosed quote in nine descriptions.
+
 FAIL CLOSED: a file that cannot be read or parsed ends the check with 2. A file
 read and found wanting is a finding: 1.
 
@@ -30,6 +36,12 @@ from pathlib import Path
 import yaml
 
 
+# A quotation mark that opens has one partner that closes it. Grouped by closer,
+# because Polish („…”) and English (“…”) share one. The single marks ’ and ‹…› are
+# left out: ’ is an apostrophe in most of the languages this add-on ships in.
+QUOTE_PAIRS = ((("„", "“"), "”"), (("«",), "»"))
+
+
 class CannotCheck(Exception):
     """The check could not be performed — never confused with a clean result."""
 
@@ -43,6 +55,20 @@ def load(path: Path) -> dict:
     if not isinstance(data, dict):
         raise CannotCheck(f"{path}: expected a mapping at the top level")
     return data
+
+
+def unclosed_quotes(lang: str, option: str, field: str, value: str) -> list[str]:
+    """Say where a typographic quote opens in this text and never closes."""
+    findings = []
+    for openers, closer in QUOTE_PAIRS:
+        opened = sum(value.count(mark) for mark in openers)
+        closed = value.count(closer)
+        if opened != closed:
+            marks = "/".join(openers)
+            findings.append(
+                f"{lang}: `{option}` {field} opens {opened} {marks} and closes {closed} {closer}"
+            )
+    return findings
 
 
 def check(addon: Path) -> list[str]:
@@ -71,6 +97,8 @@ def check(addon: Path) -> list[str]:
                 value = entry.get(field)
                 if not isinstance(value, str) or not value.strip():
                     findings.append(f"{lang}: `{option}` has no {field}")
+                    continue
+                findings.extend(unclosed_quotes(lang, option, field, value))
         for option in configuration:
             if option not in schema:
                 findings.append(f"{lang}: `{option}` is described but is not an option")

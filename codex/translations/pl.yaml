@@ -158,19 +158,19 @@ configuration:
       Alarmuj, gdy czujnik wycieku/wilgoci się załączy. Traktowane jako
       KRYTYCZNE i wysyłane zawsze — nawet w godzinach ciszy. Domyślnie włączone.
   alert_open_at_night:
-    name: Alerty „otwarte w nocy"
+    name: Alerty „otwarte w nocy”
     description: >-
       Alarmuj, gdy drzwi, okno lub garaż są otwarte w oknie nocnym poniżej.
       Domyślnie włączone.
   alert_night_start:
     name: Początek okna nocnego (HH:MM)
     description: >-
-      Początek okna nocnego używanego przez alerty „otwarte w nocy"
+      Początek okna nocnego używanego przez alerty „otwarte w nocy”
       (domyślnie 23:00).
   alert_night_end:
     name: Koniec okna nocnego (HH:MM)
     description: >-
-      Koniec okna nocnego używanego przez alerty „otwarte w nocy"
+      Koniec okna nocnego używanego przez alerty „otwarte w nocy”
       (domyślnie 06:00).
   alert_temp_enabled:
     name: Alerty temperatury
@@ -266,24 +266,24 @@ configuration:
       Opcjonalne nadpisanie modelu TYLKO dla czatu towarzyszącego (integracja
       AI Agent), niezależnie od konsoli. Użyj szybszego, tańszego modelu dla
       błyskawicznych, tanich odpowiedzi w Assist, podczas gdy konsola zachowuje
-      własny model. Zostaw puste, aby użyć „Nadpisania modelu" powyżej lub
+      własny model. Zostaw puste, aby użyć „Nadpisania modelu” powyżej lub
       domyślnego modelu Codex.
   chat_model_voice:
     name: Model głosowy (integracja AI Agent)
     description: >-
       Opcjonalny jeszcze szybszy model TYLKO dla mówionych (głosowych) tur Assist —
       odpowiedzi głosowe są krótkie, więc niższe opóźnienie liczy się bardziej niż
-      moc. Zostaw puste, aby dla głosu też użyć „Modelu czatu" powyżej.
+      moc. Zostaw puste, aby dla głosu też użyć „Modelu czatu” powyżej.
   chat_model_write:
     name: Model akcji (integracja AI Agent)
     description: >-
       Opcjonalny model do wykonania akcji, którą już potwierdziłeś w czacie. Ten
       krok wywołuje tylko podaną akcję Home Assistant, więc zwykle wystarczy
-      szybszy, tańszy model. Zostaw puste, aby użyć „Modelu czatu" powyżej. Tura
-      głosowa zostaje przy „Modelu głosowym", jeśli jest ustawiony.
+      szybszy, tańszy model. Zostaw puste, aby użyć „Modelu czatu” powyżej. Tura
+      głosowa zostaje przy „Modelu głosowym”, jeśli jest ustawiony.
   chat_model_camera:
     name: Model kamer (integracja AI Agent)
     description: >-
       Opcjonalny model do pytań, na które odpowiedź pochodzi ze zdjęcia z kamery.
-      Zostaw puste, aby użyć „Modelu czatu" powyżej. Tura głosowa zostaje przy
-      „Modelu głosowym", jeśli jest ustawiony.
+      Zostaw puste, aby użyć „Modelu czatu” powyżej. Tura głosowa zostaje przy
+      „Modelu głosowym”, jeśli jest ustawiony.
