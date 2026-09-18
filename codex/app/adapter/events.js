@@ -19,6 +19,13 @@
 //   read_mcp_resource, …), which it reports under the server they read from
 //   and which reach the server outside the allowed tool list.
 //
+// The name the CLI reports is the one the SERVER published, and Home Assistant
+// namespaces each published tool by the API it comes from — six prefixes in one
+// server, measured 2026-09-18. What the request allows are basenames, so the
+// wire name is reduced by `basename` before it is asked about. That function is
+// the core's own statement of the rule, passed in by the adapter; this file
+// holds no second copy of it, because a rule stated twice is a rule that drifts.
+//
 // The CLI reports no cost, no model and no turn count here: those stay null.
 
 const HA_SERVER = 'ha';
@@ -63,12 +70,21 @@ function errorText(err) {
 
 /**
  * @param {object} o
- * @param {string[]} o.allowedTools  the exact tool names this request may call
+ * @param {string[]} o.allowedTools  the basenames this request may call
+ * @param {(published: string) => string} o.basename  how Home Assistant names a
+ *   published tool, as the core states it — never a rule of this file's own
  * @param {string} [o.haServer]
  */
-function createDecoder({ allowedTools, haServer = HA_SERVER }) {
+function createDecoder({ allowedTools, basename, haServer = HA_SERVER }) {
   if (!Array.isArray(allowedTools) || allowedTools.some((t) => typeof t !== 'string' || t === '')) {
     throw new TypeError('decoder: allowedTools must list the allowed tool names');
+  }
+  // Required, with no default: a decoder that silently compared wire names to
+  // basenames refused every call a real server published (measured 2026-09-18,
+  // `unexpected MCP call ha/homeassistant__GetLiveContext`), and a default would
+  // let that state come back the moment a caller forgot the oracle.
+  if (typeof basename !== 'function') {
+    throw new TypeError('decoder: basename must be the core\'s rule for a published tool name');
   }
   const allowed = new Set(allowedTools);
   const state = {
@@ -97,18 +113,24 @@ function createDecoder({ allowedTools, haServer = HA_SERVER }) {
     if (id === '') return fail('protocol', 'MCP call without an id');
     // One id is one call: its server and tool never change, and it ends once.
     const known = state.toolCalls.get(id);
-    if (known && (known.server !== server || known.tool !== tool)) {
+    if (known && (known.server !== server || known.published !== tool)) {
       return fail('protocol', `MCP call ${id} changed its identity`);
     }
     if (known && known.status !== 'started') return fail('protocol', `MCP call ${id} reported after it ended`);
     if (known && phase === 'start') return null; // progress of a started call
-    if (server !== haServer || !allowed.has(tool)) return violate(`MCP call ${server || '?'}/${tool || '?'}`);
-    const call = known || { server, tool, status: 'started', error: null };
+    // The wire name goes to the oracle first; what comes back is the one name
+    // the rest of this add-on speaks, and the violation still quotes what the
+    // CLI actually said, because that is what a reader has to recognise.
+    const name = tool === '' ? '' : basename(tool);
+    if (server !== haServer || name === '' || !allowed.has(name)) {
+      return violate(`MCP call ${server || '?'}/${tool || '?'}`);
+    }
+    const call = known || { server, published: tool, tool: name, status: 'started', error: null };
     state.toolCalls.set(id, call);
-    if (phase === 'start') return { kind: 'tool-start', id, server, tool };
+    if (phase === 'start') return { kind: 'tool-start', id, server, tool: name };
     call.status = it.status === 'completed' && !it.error ? 'completed' : 'failed';
     call.error = it.error ? errorText(it.error) : null;
-    return { kind: 'tool-result', id, server, tool, ok: call.status === 'completed', error: call.error };
+    return { kind: 'tool-result', id, server, tool: name, ok: call.status === 'completed', error: call.error };
   }
 
   function decodeItem(phase, it) {
