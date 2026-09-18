@@ -38,7 +38,7 @@ test('a write run that called its allowed tool succeeds with the schema answer (
   assert.equal(outcome.status, 'ok');
   assert.deepEqual(outcome.final, { text: 'Could not call: ha_write. Called ha_read with note "r".', markers: [] });
   assert.deepEqual(outcome.toolsUsed, ['ha_read']);
-  assert.deepEqual(outcome.toolCalls, [{ server: 'ha', tool: 'ha_read', status: 'completed', error: null }]);
+  assert.deepEqual(outcome.toolCalls, [{ server: 'ha', published: 'ha_read', tool: 'ha_read', status: 'completed', error: null }]);
   assert.equal(outcome.mcpFailed, false);
   assert.deepEqual(outcome.usage, { input: 19044 - 9216, cacheRead: 9216, cacheWrite: 0, output: 170, reasoning: 0 });
   assert.equal(outcome.costUsd, null);
@@ -79,11 +79,34 @@ test('a refused tool call is reported as failed, not as used (recorded run)', ()
   assert.deepEqual(outcome.toolsUsed, ['ha_other', 'ha_read']);
   assert.equal(outcome.mcpFailed, true);
   assert.deepEqual(outcome.toolCalls[0], {
-    server: 'ha', tool: 'ha_write', status: 'failed', error: 'MCP tool call requires approval, but approval policy is never',
+    server: 'ha', published: 'ha_write', tool: 'ha_write', status: 'failed', error: 'MCP tool call requires approval, but approval policy is never',
   });
   // That run's answer was prose, not the schema answer.
   assert.equal(outcome.status, 'error');
   assert.equal(outcome.reason, 'no_result');
+});
+
+test('the record keeps the published name, so two namespaces with one basename stay apart', () => {
+  // The server publishes a namespace; the core's rule strips it. Both calls
+  // below are the same tool to the rest of the add-on and different tools on
+  // the wire, which is exactly what the record has to survive.
+  const stripNamespace = (published) => published.split('__').pop();
+  const { outcome } = decode([
+    ...START,
+    mcp('completed', 'i1', 'ha', 'homeassistant__GetLiveContext'),
+    mcp('completed', 'i2', 'ha', 'intent__GetLiveContext'),
+    FINAL,
+    DONE,
+  ], 0, { allowedTools: ALLOWED, basename: stripNamespace });
+  assert.equal(outcome.status, 'ok');
+  assert.deepEqual(outcome.toolCalls, [
+    { server: 'ha', published: 'homeassistant__GetLiveContext', tool: 'GetLiveContext', status: 'completed', error: null },
+    { server: 'ha', published: 'intent__GetLiveContext', tool: 'GetLiveContext', status: 'completed', error: null },
+  ]);
+  // The two records differ, and they differ in the published name alone.
+  assert.notEqual(outcome.toolCalls[0].published, outcome.toolCalls[1].published);
+  // The add-on's own vocabulary is deliberately unchanged: the core speaks it.
+  assert.deepEqual(outcome.toolsUsed, ['GetLiveContext', 'GetLiveContext']);
 });
 
 test('the hook-trust warning is a warning; every other error item is a failure', () => {
