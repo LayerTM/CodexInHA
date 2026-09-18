@@ -56,7 +56,16 @@ function toolName(basename) {
 function toolBasename(name) {
   if (typeof name !== 'string' || !name.startsWith(HA_TOOL_PREFIX)) return null;
   const rest = name.slice(HA_TOOL_PREFIX.length);
-  return rest === '' ? null : rest;
+  // What is left is the name the SERVER published, and Home Assistant namespaces
+  // a tool by the API it comes from: `intent__HassTurnOn`, `todo__get_items`,
+  // `homeassistant__GetLiveContext` — six different prefixes in one server,
+  // measured 2026-09-18. The core pins basenames, and its relay decides by the
+  // same rule (`server/prompt/mcp-filter.js`, `haBasename`), which cannot be
+  // required from here: an adapter may require only the core modules the core
+  // lists as leaves, and that file is not one of them.
+  const cut = rest.lastIndexOf('__');
+  const basename = cut === -1 ? rest : rest.slice(cut + 2);
+  return basename === '' ? null : basename;
 }
 
 // Passed on from the add-on's environment when set: the CLI's own credential
