@@ -8,7 +8,8 @@
 
 ## Checklist
 
-- [ ] The tests pass in a plain checkout: `cd codex/app && node --test test/`
+- [ ] The tests pass in a plain checkout: `cd codex/app && node --test test/*.test.js`
+      (`test/assembled/` needs the core and runs with the commands below)
 - [ ] Lint and types pass on the assembled tree — `npm run lint` and
       `npm run typecheck` need the dependencies that arrive with the core, so
       they run after the three commands in the README's *Building and testing*

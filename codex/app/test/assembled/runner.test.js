@@ -1,9 +1,20 @@
 'use strict';
 
+// These tests need the ASSEMBLED tree: the adapter asks the core's leaf
+// `server/prompt/ha-tool-names.js` how Home Assistant names a published tool, and
+// that file arrives with the core, not with this repository. Every test under
+// `test/` itself still runs straight from a checkout — which is what keeps the
+// bare test command in the README honest, and what turns red if a test outside
+// this directory grows a dependency on the core.
+
 const test = require('node:test');
 const assert = require('node:assert/strict');
 
-const runner = require('../adapter/runner.js');
+const runner = require('../../adapter/runner.js');
+// The core's own statement of how Home Assistant names a published tool. The
+// adapter answers from this leaf; asking both here is what proves it still does,
+// rather than proving that two copies happen to agree today.
+const { haBasename } = require('../../server/prompt/ha-tool-names');
 
 const spec = (over = {}) => ({
   read: true,
@@ -32,7 +43,11 @@ test('a Home Assistant tool keeps one name in both directions', () => {
     ['assist_satellite__HassBroadcast', 'HassBroadcast'],
     ['llm__GetDateTime', 'GetDateTime'],
   ]) {
+    // One expected answer, asked of both: the adapter, which the core calls, and
+    // the core's own leaf, which its relay answers from. Neither may drift from
+    // this table, and the adapter no longer holds a rule that could drift at all.
     assert.equal(runner.toolBasename(`ha__${published}`), basename, published);
+    assert.equal(haBasename(published), basename, `core: ${published}`);
   }
   assert.equal(runner.toolBasename('ha__'), null);
   assert.equal(runner.toolBasename('ha__intent__'), null, 'a namespace with no tool after it');

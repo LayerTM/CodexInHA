@@ -23,6 +23,7 @@
 const fs = require('node:fs');
 const path = require('node:path');
 const { spawnSync } = require('node:child_process');
+const { haBasename } = require('../server/prompt/ha-tool-names');
 const cli = require('./cli');
 const launch = require('./launch');
 const events = require('./events');
@@ -55,16 +56,11 @@ function toolName(basename) {
 
 function toolBasename(name) {
   if (typeof name !== 'string' || !name.startsWith(HA_TOOL_PREFIX)) return null;
-  const rest = name.slice(HA_TOOL_PREFIX.length);
-  // What is left is the name the SERVER published, and Home Assistant namespaces
-  // a tool by the API it comes from: `intent__HassTurnOn`, `todo__get_items`,
-  // `homeassistant__GetLiveContext` — six different prefixes in one server,
-  // measured 2026-09-18. The core pins basenames, and its relay decides by the
-  // same rule (`server/prompt/mcp-filter.js`, `haBasename`), which cannot be
-  // required from here: an adapter may require only the core modules the core
-  // lists as leaves, and that file is not one of them.
-  const cut = rest.lastIndexOf('__');
-  const basename = cut === -1 ? rest : rest.slice(cut + 2);
+  // What is left is the name the SERVER published, and how Home Assistant names
+  // a published tool is the core's leaf `server/prompt/ha-tool-names.js` — the
+  // one place that rule is stated, for the core's relay and for every adapter.
+  // Only the `ha__` prefix above is this engine's own spelling.
+  const basename = haBasename(name.slice(HA_TOOL_PREFIX.length));
   return basename === '' ? null : basename;
 }
 

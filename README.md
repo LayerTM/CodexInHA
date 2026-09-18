@@ -97,8 +97,11 @@ The add-on's own tests need none of that and run straight from a checkout, with 
 install:
 
 ```sh
-cd codex/app && node --test test/
+cd codex/app && node --test test/*.test.js
 ```
+
+The tests in `codex/app/test/assembled/` are the exception, and say so by where they live: they read
+a module that arrives with the core, so they run with the command above this one.
 
 `npm run lint` and `npm run typecheck` do need the assembled tree: eslint and typescript arrive with
 the core, not with this repository.
