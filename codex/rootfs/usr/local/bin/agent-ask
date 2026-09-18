@@ -16,6 +16,7 @@
 // This run gets no Home Assistant server at all, no schema and no image.
 
 const fs = require('node:fs');
+const path = require('node:path');
 const { spawn } = require('node:child_process');
 
 const ADAPTER = '/opt/agent-console/adapter';
@@ -41,16 +42,17 @@ function main() {
   if (prompt.trim() === '') fail('no prompt on stdin');
 
   let command;
+  let runDir;
   try {
     // The same home a prompt run uses: nothing but a link to the console's
     // sign-in, so the question reads none of the user's own instructions.
     launch.preparePromptHome(cli.CONSOLE_HOME, cli.PROMPT_HOME);
     // A directory of its own, like a prompt run's: two questions can be asked
-    // at once, and neither may empty the other's.
-    command = launch.askLaunch({
-      features: runner.features(),
-      workDir: require('node:path').join(runner.newRunDir(), 'work'),
-    });
+    // at once, and neither may empty the other's. It is released when the
+    // child exits, so nothing has to judge from its age whether it is still
+    // in use.
+    runDir = runner.newRunDir();
+    command = launch.askLaunch({ features: runner.features(), workDir: path.join(runDir, 'work') });
   } catch (err) {
     fail(err.message);
     return;
@@ -85,8 +87,12 @@ function main() {
     }
   });
 
-  child.on('error', (err) => fail(err.message));
+  child.on('error', (err) => {
+    runner.removeRunDir(runDir);
+    fail(err.message);
+  });
   child.on('close', (code) => {
+    runner.removeRunDir(runDir);
     if (code !== 0) fail(`the agent exited with status ${code}`);
     if (answer === null || answer.trim() === '') fail('the agent gave no answer');
     process.stdout.write(`${answer}\n`);

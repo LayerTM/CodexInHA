@@ -35,9 +35,14 @@ const events = require('./events');
 // one shared directory meant the second run emptied the directory the first was
 // working in and overwrote the schema it was answering against.
 const RUN_DIR = path.join(cli.PROMPT_HOME, 'run');
-// A directory nothing has written to for this long belongs to a run that is
-// over: the core's own limit is far below it.
-const RUN_DIR_MAX_AGE_MS = 60 * 60 * 1000;
+// The run directories this process is using right now. A directory is in here
+// from the moment it is made until the run that owns it ends, so a sweep can
+// tell a live run from an abandoned one without guessing from a timestamp.
+const live = new Set();
+
+// spec -> the directory that run is using. A WeakMap, so a spec the core has
+// finished with takes its entry with it.
+const runDirs = new WeakMap();
 
 // A Home Assistant tool as the core names it. The CLI reports an MCP call with
 // the server and the tool apart, so the name the core sees is composed here and
@@ -101,33 +106,121 @@ function relay(file) {
   }
 }
 
-// Directories of runs that are long over. A run cannot be asked when it ended,
-// so age decides; nothing is removed while it could still be in use.
-function sweepRunDirs(now = Date.now(), root = RUN_DIR) {
+// Who a run directory belongs to is in its NAME: `run-<pid>-<start>-<random>`,
+// written by the one atomic call that creates it. A directory therefore never
+// exists without its owner: an earlier version wrote the owner into a file
+// afterwards, and a sweep running in another process (the one-shot question is
+// its own process) could see the directory in between and take it away from a
+// run that was just starting.
+//
+// `<start>` is the moment that process started, which is what tells one process
+// from another one that later got the same number — /data outlives a container
+// restart, and container pids start again from small numbers.
+const RUN_NAME = /^run-(\d+)-(\d+)-/;
+
+// A process's start time, as the system counts it: field 22 of
+// /proc/<pid>/stat, the one field that makes a pid unique over time. The field
+// is read from the end, because field 2 is the program name and may contain
+// spaces and brackets. `null` means the question could not be answered — which
+// is never treated as "gone".
+function processStart(pid, procRoot = '/proc') {
+  let stat;
+  try {
+    stat = fs.readFileSync(path.join(procRoot, String(pid), 'stat'), 'utf8');
+  } catch (err) {
+    if (err.code === 'ENOENT') return 'gone';
+    return null;
+  }
+  const close = stat.lastIndexOf(')');
+  if (close === -1) return null;
+  const fields = stat.slice(close + 2).trim().split(/\s+/);
+  // After the program name, field 3 of the line is the first here, so the
+  // start time (field 22) is at index 19.
+  const value = fields[19];
+  return /^\d+$/.test(value) ? value : null;
+}
+
+/**
+ * Is the run that owns this directory over?
+ *
+ * Only a positive answer removes anything. "The process is gone", or "a
+ * different process has that number now", are positive. Everything else — a
+ * name that does not say who owns it, a /proc that cannot be read, a stat line
+ * in a shape this does not know — leaves the directory alone, because not
+ * knowing is not the same as knowing it is dead.
+ */
+function ownerIsGone(name, { self = process.pid, procRoot = '/proc' } = {}) {
+  const m = RUN_NAME.exec(name);
+  if (!m) return false;
+  const pid = Number.parseInt(m[1], 10);
+  const started = m[2];
+  const current = processStart(pid, procRoot);
+  if (current === 'gone') return true;
+  if (current === null) return false;
+  if (current !== started) return true; // the number belongs to somebody else now
+  // The same process, still running. Our own directories that are not live are
+  // runs of ours that have ended; another process's are not ours to remove.
+  return pid === self;
+}
+
+// Directories of runs that are over. What decides is whether the run is still
+// happening, not how long ago the directory was touched: the CLI writes inside
+// work/, which does not move the directory's own timestamp, so an age would
+// only ever be a guess with a margin — and a margin quietly becomes zero when
+// somebody raises a time limit elsewhere.
+function sweepRunDirs(root = RUN_DIR, { self = process.pid, procRoot = '/proc' } = {}) {
   let entries;
   try {
     entries = fs.readdirSync(root);
   } catch {
-    return;
+    return [];
   }
+  const removed = [];
   for (const name of entries) {
     const dir = path.join(root, name);
+    if (live.has(dir)) continue;
+    if (!ownerIsGone(name, { self, procRoot })) continue;
     try {
-      if (now - fs.statSync(dir).mtimeMs > RUN_DIR_MAX_AGE_MS) fs.rmSync(dir, { recursive: true, force: true });
-    } catch { /* another run removed it, or it is not ours to remove */ }
+      fs.rmSync(dir, { recursive: true, force: true });
+      removed.push(dir);
+    } catch { /* another process removed it first */ }
   }
+  return removed;
 }
 
-// One run's own empty directory. The CLI reads what it finds in its working
+// One run's own directory. The CLI reads what it finds in its working
 // directory, so a leftover file from another run is input nobody meant to give
 // it — and another run's live files are not ours to delete.
-function newRunDir(root = RUN_DIR) {
+function newRunDir(root = RUN_DIR, { self = process.pid, procRoot = '/proc' } = {}) {
   fs.mkdirSync(root, { recursive: true, mode: 0o700 });
-  sweepRunDirs(Date.now(), root);
-  const dir = fs.mkdtempSync(path.join(root, 'run-'));
+  sweepRunDirs(root, { self, procRoot });
+  const started = processStart(self, procRoot);
+  // Without a start time this process cannot be told from a later one with the
+  // same number, so its directories are named in a way no sweep will ever
+  // remove, rather than in a way that might remove the wrong one.
+  const owner = started && started !== 'gone' ? `${self}-${started}` : `${self}-unknown`;
+  const dir = fs.mkdtempSync(path.join(root, `run-${owner}-`));
   fs.chmodSync(dir, 0o700);
   fs.mkdirSync(path.join(dir, 'work'), { mode: 0o700 });
+  live.add(dir);
   return dir;
+}
+
+// The run that owned this directory has ended. The directory stops being live,
+// and the next sweep of this process takes it: it is not deleted here, because
+// the CLI child may still be closing down in it — the core kills the process
+// group after the result, not before.
+function endRun(dir) {
+  live.delete(dir);
+}
+
+// The run has ended AND its process is gone, so the directory can go now. Used
+// by the one-shot question, which waits for its own child.
+function removeRunDir(dir) {
+  live.delete(dir);
+  try {
+    fs.rmSync(dir, { recursive: true, force: true });
+  } catch { /* already gone */ }
 }
 
 function writeSchema(dir, schema) {
@@ -147,6 +240,9 @@ function launchRun(spec, { env }) {
   launch.preparePromptHome(cli.CONSOLE_HOME, cli.PROMPT_HOME);
   const ha = relay(spec.mcpConfigPath);
   const runDir = newRunDir();
+  // The core calls launch and createDecoder with the same spec, so this is how
+  // the decoder learns which directory to release when the run ends.
+  runDirs.set(spec, runDir);
   const built = launch.promptLaunch({
     mode: spec.read ? 'read' : 'write',
     features: features(),
@@ -199,11 +295,22 @@ function createDecoder(spec) {
   let usage = null;
   let done = false;
 
+  // The run is over the moment it has a result, whichever kind: its directory
+  // stops being live here rather than waiting for a sweep to guess.
+  const finish = () => {
+    const dir = runDirs.get(spec);
+    if (dir) {
+      runDirs.delete(spec);
+      endRun(dir);
+    }
+  };
+
   // `deterministic` tells the core whether a retry could ever end differently.
   // A policy violation could not: the run tried something the profile forbids,
   // and the same request would try it again, so it is not re-run.
   const failure = (message, reason) => {
     done = true;
+    finish();
     return {
       type: 'result',
       isError: true,
@@ -255,6 +362,7 @@ function createDecoder(spec) {
     // branch; it is not dead in the tests, which do know the status.
     if (parsed && parsed.type === 'turn.completed') {
       done = true;
+      finish();
       const outcome = decoder.end(0);
       if (outcome.status !== 'ok') {
         out.push(failure(outcome.message, outcome.reason));
@@ -278,9 +386,12 @@ function createDecoder(spec) {
 module.exports = {
   features,
   newRunDir,
+  endRun,
+  removeRunDir,
   sweepRunDirs,
+  ownerIsGone,
+  processStart,
   RUN_DIR,
-  RUN_DIR_MAX_AGE_MS,
   HA_TOOL_PREFIX,
   toolName,
   toolBasename,
