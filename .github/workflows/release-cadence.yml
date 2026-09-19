@@ -1,0 +1,61 @@
+name: release cadence
+
+# A release used to be cut by hand, whenever someone remembered: three of them
+# on 2026-09-18 alone. Every release an installed add-on sees with auto-update
+# on is a restart of it, so "one release a day" is the owner's rule — and a rule
+# nothing enforces is the person who remembers it. This checks, cheaply, whether
+# main carries a version with no release yet, and only then asks ci.yml to
+# re-run every gate for main's current head and cut the release once they all
+# pass — so a release still exists only for a commit that passed CI on that run.
+#
+# 12:00 UTC: afternoon across Europe and morning across the Americas, so a
+# scheduled restart lands while most users are awake rather than overnight.
+#
+# workflow_dispatch is the exception: a fix that is actively breaking installs
+# should not wait for the clock. It goes through the same gates — reason is
+# required so the run states why it could not wait, but what marks a release as
+# critical for a reader is the CHANGELOG entry the bump carries, not this file.
+
+on:
+  schedule:
+    - cron: "0 12 * * *"
+  workflow_dispatch:
+    inputs:
+      reason:
+        description: Why this cannot wait for the daily schedule
+        required: true
+        type: string
+
+permissions:
+  actions: write
+  contents: read
+
+concurrency:
+  group: release-cadence
+  cancel-in-progress: false
+
+jobs:
+  check:
+    name: Does main carry a release worth cutting
+    runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ github.token }}
+      REPO: ${{ github.repository }}
+      REASON: ${{ inputs.reason }}
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Dispatch ci.yml to cut a release, only if one is pending
+        run: |
+          set -euo pipefail
+          version="$(python3 .github/scripts/release_notes.py version codex/config.yaml)"
+          if gh release view "v${version}" >/dev/null 2>&1; then
+            echo "v${version} is already released — nothing pending."
+            exit 0
+          fi
+          echo "v${version} has no release yet."
+          if [ -n "${REASON:-}" ]; then
+            echo "Reason for cutting outside the daily schedule: ${REASON}"
+          fi
+          gh workflow run ci.yml --repo "$REPO" --ref main -f cut_release=true
+          echo "::notice::dispatched ci.yml to cut v${version}"
