@@ -4,7 +4,16 @@ on:
   push:
     branches: [main]
   pull_request:
+  # A dispatched run measures the branch as it is. cut_release is the one thing
+  # that also cuts a release from this trigger: release-cadence.yml sets it,
+  # once a day or on an explicit dispatch, so a plain re-run of CI never ships
+  # one.
   workflow_dispatch:
+    inputs:
+      cut_release:
+        description: Cut a release for main's current version if one is pending
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -230,3 +239,100 @@ jobs:
         working-directory: .github/scripts
       - name: Scan tracked files for traces of one machine
         run: python .github/scripts/hygiene_scan.py .
+
+  # What a release is allowed to depend on is a list, and a list goes stale the
+  # first time a gate is added without touching it. This asserts the release job
+  # waits for every other job in this file — on the pull request that adds one,
+  # rather than on main after a release has already been cut past it.
+  workflow-gates:
+    name: Workflow gates
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.14"
+      - name: Install the YAML reader
+        run: pip install --disable-pip-version-check PyYAML==6.0.3
+      - name: Self-test the check
+        working-directory: .github/scripts
+        run: python test_ci_gates.py
+      - name: Every gate is a gate the release waits for
+        run: python .github/scripts/ci_gates.py
+
+  # What a release's notes carry is decided by a script, so it can be tested.
+  # This job always runs, so the release below may need it.
+  release-notes:
+    name: Release notes
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.14"
+      - name: Self-test the script that composes a release's notes
+        working-directory: .github/scripts
+        run: python test_release_notes.py
+
+  # A release exists only for a commit that passed every gate above on this very
+  # run. It is not cut from the push that lands a bump: release-cadence.yml
+  # dispatches this workflow with cut_release once a day, or a maintainer does it
+  # by hand for a fix that cannot wait — the owner's rule is at most one release
+  # a day, and this is the mechanism that holds it rather than a person's memory.
+  # A version bumped and superseded before its own cut is not lost: notes.md
+  # carries every changelog section back to the last real release.
+  release:
+    name: Release
+    needs:
+      - tests
+      - tests-bare
+      - lint-js
+      - lint-coverage
+      - store-repository
+      - translations
+      - addon-linter
+      - hadolint
+      - shellcheck
+      - python-lint
+      - secret-scan
+      - hygiene
+      - workflow-gates
+      - release-notes
+    if: >-
+      github.event_name == 'workflow_dispatch' &&
+      github.ref == 'refs/heads/main' &&
+      inputs.cut_release == true
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    concurrency: release
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.14"
+
+      - name: Resolve version from config.yaml
+        id: v
+        run: |
+          version="$(python .github/scripts/release_notes.py version codex/config.yaml)"
+          echo "version=${version}" >> "$GITHUB_OUTPUT"
+
+      - name: Create release if missing
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ steps.v.outputs.version }}
+          SHA: ${{ github.sha }}
+        run: |
+          tag="v${VERSION}"
+          if gh release view "${tag}" >/dev/null 2>&1; then
+            echo "Release ${tag} already exists — nothing to do."
+            exit 0
+          fi
+          python .github/scripts/release_notes.py notes codex/config.yaml \
+            codex/CHANGELOG.md --write notes.md
+          gh release create "${tag}" \
+            --title "Codex for Home Assistant ${VERSION}" \
+            --notes-file notes.md \
+            --target "${SHA}"
+          echo "Created release ${tag}."
