@@ -325,10 +325,18 @@ jobs:
           SHA: ${{ github.sha }}
         run: |
           tag="v${VERSION}"
-          if gh release view "${tag}" >/dev/null 2>&1; then
-            echo "Release ${tag} already exists — nothing to do."
-            exit 0
-          fi
+          # 0 released, 1 none, 2 gh could not say — which must stop the job,
+          # not be taken for "none" and cut a release nobody checked.
+          status=0
+          python .github/scripts/release_notes.py released "${VERSION}" || status=$?
+          case "${status}" in
+            0)
+              echo "Release ${tag} already exists — nothing to do."
+              exit 0
+              ;;
+            1) ;;
+            *) exit "${status}" ;;
+          esac
           python .github/scripts/release_notes.py notes codex/config.yaml \
             codex/CHANGELOG.md --write notes.md
           gh release create "${tag}" \
