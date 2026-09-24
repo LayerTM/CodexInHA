@@ -46,11 +46,11 @@ RUN apt-get update \
 # differs from what was seen at the bump — however it came to differ — stops the
 # build instead of being installed.
 # upstream: nodejs lts-ready
-ARG NODE_VERSION=26.9.0
+ARG NODE_VERSION=26.10.0
 # upstream: nodejs-sha256 linux-x64
-ARG NODE_SHA256_AMD64=c6ecd8efc1c1d395265891675319da7a7b3785c6be174bd78933cf4f057624d1
+ARG NODE_SHA256_AMD64=ca70e9e349de048b9522abb3adc05b3bd6f43c5ffd3ec57916c7da292f59f022
 # upstream: nodejs-sha256 linux-arm64
-ARG NODE_SHA256_ARM64=686d07ed3bc5d68d9f7bd4939b7e8849a87d0664ac19c8c5474474f44cc956db
+ARG NODE_SHA256_ARM64=7a6353f63eb3d04765004b4adf172616243e4522434635cb1d26288658b04ab5
 RUN arch="$(dpkg --print-architecture)" \
     && case "${arch}" in \
          amd64) node_arch="x64";   expected="${NODE_SHA256_AMD64}" ;; \
@@ -101,7 +101,7 @@ SHELL ["/bin/bash", "-o", "pipefail", "-c"]
 # upstream change of the package's shape fails the build here instead of at a
 # user's next start.
 # upstream: npm @openai/codex
-ARG CODEX_VERSION=0.155.0
+ARG CODEX_VERSION=0.156.1
 ENV NPM_CONFIG_PREFIX=/opt/codex-npm
 RUN npm install --global --no-audit --no-fund "@openai/codex@${CODEX_VERSION}" \
     && npm cache clean --force \

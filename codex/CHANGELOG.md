@@ -1,5 +1,18 @@
 # Changelog
 
+## 0.1.4
+
+- Codex CLI 0.155.0 → 0.156.1
+  ([0.155.1](https://github.com/openai/codex/releases/tag/rust-v0.155.1),
+  [0.156.0](https://github.com/openai/codex/releases/tag/rust-v0.156.0),
+  [0.156.1](https://github.com/openai/codex/releases/tag/rust-v0.156.1)).
+  With **Auto-Update** on, an installed add-on already moves its CLI at start;
+  this is the version a fresh install begins with.
+- Node.js 26.9.0 → 26.10.0
+  ([release notes](https://github.com/nodejs/node/releases/tag/v26.10.0)).
+- Playwright MCP 0.0.81 → 0.0.82
+  ([release notes](https://github.com/microsoft/playwright-mcp/releases/tag/v0.0.82)).
+
 ## 0.1.3
 
 - Ask the assistant about your home and it answers with your home. Home Assistant
