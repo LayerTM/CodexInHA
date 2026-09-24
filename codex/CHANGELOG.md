@@ -2,6 +2,13 @@
 
 ## 0.1.4
 
+- A streamed answer with an emoji in it arrives whole. The answer is sent in
+  pieces, and a cut could fall between the two halves of a character outside the
+  Basic Multilingual Plane — an emoji, and much of the world's script beyond it.
+  Neither half is text, so a strict client rejected the piece and lost the answer.
+  A cut now never splits a character, and the same holds where a length cap trims
+  the stored conversation history or an error message
+  (ha-agent-core 0.7.6 → [0.7.7](https://github.com/LayerTM/ha-agent-core/releases/tag/v0.7.7)).
 - Codex CLI 0.155.0 → 0.156.1
   ([0.155.1](https://github.com/openai/codex/releases/tag/rust-v0.155.1),
   [0.156.0](https://github.com/openai/codex/releases/tag/rust-v0.156.0),
