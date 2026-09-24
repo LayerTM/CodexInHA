@@ -100,6 +100,14 @@ test('a completed turn carries the structured answer and the tokens', () => {
   }]);
 });
 
+test('a run spec without a schema is refused before anything is made for it', () => {
+  // Refused ahead of the prompt home and the run directory: neither may exist
+  // for a run that will never start.
+  for (const schema of [undefined, null, '']) {
+    assert.throws(() => runner.launch(spec({ schema }), { env: {} }), /no schema/, String(schema));
+  }
+});
+
 test('a turn that ends without a JSON answer is an error result', () => {
   const decode = runner.createDecoder(spec());
   const out = events(decode, [

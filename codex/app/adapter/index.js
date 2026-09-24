@@ -34,8 +34,8 @@ module.exports = {
     // is refused before the run starts (`invalid_json_schema … additionalProperties
     // is required to be supplied and to be false`, measured 2026-09-18). An
     // intent's data and an automation block are open by nature — their keys
-    // belong to the home — so the core gives this engine no schema for an answer
-    // that contains one, rather than a schema this engine cannot be given.
+    // belong to the home — so the core gives this engine the closed form of the
+    // answer, each open object carried as a JSON-encoded string it decodes back.
     closedSchemasOnly: true,
   },
   runner: {
