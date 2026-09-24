@@ -19,7 +19,7 @@ updates:
         patterns: ["*"]
 
   - package-ecosystem: npm
-    directory: "/"
+    directory: "/codex/cli-tools"
     schedule:
       interval: weekly
     commit-message:
