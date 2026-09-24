@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.1.5
+
+- Ask for an answer in a format of your own — "emoji only, nothing else" — and
+  the answer still arrives. Codex is now held to the full shape of the answer on
+  every request, so whatever format the question asks for, the reply stays
+  something the integration can read; before, such a request could end in a
+  model error instead (ha-agent-core 0.7.7 →
+  [0.7.8](https://github.com/LayerTM/ha-agent-core/releases/tag/v0.7.8)).
+
 ## 0.1.4
 
 - A streamed answer with an emoji in it arrives whole. The answer is sent in

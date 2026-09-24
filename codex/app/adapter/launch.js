@@ -218,8 +218,8 @@ function askLaunch(p) {
  * @param {'read'|'write'} p.mode
  * @param {Array<{name: string, stage: string}>} p.features  parsed `codex features list`
  * @param {string} p.workDir        empty, private directory the run starts in
- * @param {string} [p.schemaFile]   JSON schema of the final answer; absent when
- *   the core withheld one because this engine takes only closed schemas
+ * @param {string} p.schemaFile     JSON schema of the final answer, in the closed
+ *   form the core gives this engine (see `closedSchemasOnly`)
  * @param {string} [p.model]
  * @param {string} [p.imageFile]    a camera snapshot the core fetched
  * @param {{url: string, token: string, tools: string[]}|null} [p.ha]
@@ -230,14 +230,12 @@ function askLaunch(p) {
 function promptLaunch(p) {
   if (!p || !PROMPT_MODES.has(p.mode)) throw new Error('prompt mode must be read or write');
   const workDir = checkAbsolute('work directory', p.workDir);
-  // No schema is a value: the core withholds one when this engine could not be
-  // given it (see `closedSchemasOnly`), and a run then answers in prose.
-  const schemaFile = p.schemaFile === undefined || p.schemaFile === null || p.schemaFile === ''
-    ? null
-    : checkAbsolute('schema file', p.schemaFile);
+  // Every run is held to a schema: without one the model answers in whatever
+  // format the request names, and the run fails as a model error.
+  const schemaFile = checkAbsolute('schema file', p.schemaFile);
   const model = checkModel(p.model);
   const argv = restrictedArgv(p.features, workDir);
-  if (schemaFile) argv.push('--output-schema', schemaFile);
+  argv.push('--output-schema', schemaFile);
   if (model) argv.push('--model', model);
   if (p.imageFile !== undefined && p.imageFile !== null && p.imageFile !== '') {
     argv.push('--image', checkAbsolute('image file', p.imageFile));

@@ -228,10 +228,8 @@ function removeRunDir(dir) {
   } catch { /* already gone */ }
 }
 
-// The schema the run is held to, as a file — or null when the core gave none,
-// which it does for an answer this engine could not be given a schema for.
+// The schema the run is held to, as a file.
 function writeSchema(dir, schema) {
-  if (typeof schema !== 'string' || schema === '') return null;
   const file = path.join(dir, 'schema.json');
   fs.writeFileSync(file, schema, { mode: 0o600 });
   return file;
@@ -241,6 +239,9 @@ function writeSchema(dir, schema) {
  * The complete command line and extra environment for one run spec.
  */
 function launchRun(spec, { env }) {
+  // The core gives a schema for every run; a spec without one is refused before
+  // anything is made for it, rather than run unconstrained.
+  if (typeof spec.schema !== 'string' || spec.schema === '') throw new Error('the run spec carries no schema');
   // The home a run reads its login from: a directory of its own holding
   // nothing but a link to the console's sign-in, so a run never reads the
   // user's own instructions or configuration. Checked before every run, because
