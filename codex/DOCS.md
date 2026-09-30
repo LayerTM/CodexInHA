@@ -273,6 +273,7 @@ behind the Prompt API, so the integration can adapt to it:
 | `ready` | `true` only when the CLI is installed **and** the add-on has a sign-in: either `codex login` has been completed in the console (it stores the sign-in under `/data/codex`) or **API Key** is set in the options. A freshly installed add-on reports `false` until one of those happens — the normal state between installing and signing in, not a fault, and no request has to be made first |
 | `engine` | the agent's stable name; `codex` for this add-on |
 | `engine_version` | the agent's version, as `codex --version` reports it; empty until it has been read |
+| `core_version`, `core_commit` | the release and commit of the shared core this add-on runs; the add-on log states the same when the console starts: `Codex Console listening on [::]:8099 (core X.Y.Z, commit <12 hex>)` |
 | `request_fields` | the request fields `POST /api/prompt` accepts; a field not listed is refused |
 | `prompt_max_bytes`, `body_max_bytes` | the largest prompt and request body `POST /api/prompt` accepts |
 
