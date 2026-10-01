@@ -10,19 +10,22 @@
   several devices, is answered with that instead of a guess.
 - The add-on says which release of its shared core it runs: in the log line when
   the console starts, and as `core_version` and `core_commit` in `/api/status`.
-- Codex CLI 0.156.1 → 0.159.2
+- Codex CLI 0.156.1 → 0.159.3
   ([0.157.0](https://github.com/openai/codex/releases/tag/rust-v0.157.0),
   [0.157.1](https://github.com/openai/codex/releases/tag/rust-v0.157.1),
   [0.158.0](https://github.com/openai/codex/releases/tag/rust-v0.158.0),
   [0.159.0](https://github.com/openai/codex/releases/tag/rust-v0.159.0),
   [0.159.1](https://github.com/openai/codex/releases/tag/rust-v0.159.1),
-  [0.159.2](https://github.com/openai/codex/releases/tag/rust-v0.159.2)).
+  [0.159.2](https://github.com/openai/codex/releases/tag/rust-v0.159.2),
+  [0.159.3](https://github.com/openai/codex/releases/tag/rust-v0.159.3)).
   With **Auto-Update** on, an installed add-on already moves its CLI at start;
   this is the version a fresh install begins with.
 - Debian base image 9.4.0 → 9.5.0
   ([release notes](https://github.com/hassio-addons/app-debian-base/releases/tag/v9.5.0)).
 - yq 4.53.6 → 4.54.1
   ([release notes](https://github.com/mikefarah/yq/releases/tag/v4.54.1)).
+- Playwright MCP 0.0.82 → 0.0.83
+  ([release notes](https://github.com/microsoft/playwright-mcp/releases/tag/v0.0.83)).
 
 ## 0.1.5
 

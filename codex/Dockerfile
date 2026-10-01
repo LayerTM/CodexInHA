@@ -101,7 +101,7 @@ SHELL ["/bin/bash", "-o", "pipefail", "-c"]
 # upstream change of the package's shape fails the build here instead of at a
 # user's next start.
 # upstream: npm @openai/codex
-ARG CODEX_VERSION=0.159.2
+ARG CODEX_VERSION=0.159.3
 ENV NPM_CONFIG_PREFIX=/opt/codex-npm
 RUN npm install --global --no-audit --no-fund "@openai/codex@${CODEX_VERSION}" \
     && npm cache clean --force \
