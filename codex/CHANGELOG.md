@@ -7,9 +7,13 @@
   devices in the live context by name and area, without their entity ids, so such
   a request was refused for want of an id. Home Assistant is now asked which
   exposed device the name means; a name it does not know, or one that could mean
-  several devices, is answered with that instead of a guess.
+  several devices, is answered with that instead of a guess
+  (ha-agent-core 0.7.8 → [0.8.0](https://github.com/LayerTM/ha-agent-core/releases/tag/v0.8.0)).
 - The add-on says which release of its shared core it runs: in the log line when
   the console starts, and as `core_version` and `core_commit` in `/api/status`.
+- A background task of the add-on (usage upkeep, alerts, monitoring, the digest)
+  that stops says so in the add-on log, with the exit status of the task and of
+  its log reader, instead of ending without a trace.
 - Codex CLI 0.156.1 → 0.159.3
   ([0.157.0](https://github.com/openai/codex/releases/tag/rust-v0.157.0),
   [0.157.1](https://github.com/openai/codex/releases/tag/rust-v0.157.1),
