@@ -18,6 +18,7 @@ console — and answering from Assist, in text and in voice.
 &nbsp;
 [![ci](https://github.com/LayerTM/CodexInHA/actions/workflows/ci.yml/badge.svg)](https://github.com/LayerTM/CodexInHA/actions/workflows/ci.yml)
 [![Last commit](https://img.shields.io/github/last-commit/LayerTM/CodexInHA?color=41BDF5)](https://github.com/LayerTM/CodexInHA/commits/main)
+[![Buy Me a Coffee](https://img.shields.io/badge/Buy%20Me%20a%20Coffee-support-FFDD00?logo=buymeacoffee&logoColor=black)](https://buymeacoffee.com/layertme)
 
 <img src="images/console.jpg" alt="The add-on's console: the Codex CLI in one tab, a shell in another" width="820">
 
