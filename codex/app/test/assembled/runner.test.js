@@ -201,6 +201,17 @@ test('a turn that fails in the model is offered as a retryable error', () => {
   const decode = runner.createDecoder(spec());
   const [result] = events(decode, [{ type: 'turn.failed', error: { message: 'overloaded' } }]);
   assert.equal(result.deterministic, false);
+  assert.equal('authExpired' in result, false);
+});
+
+test('a refused sign-in is handed to the core as authExpired', () => {
+  const decode = runner.createDecoder(spec());
+  const [result] = events(decode, [
+    { type: 'turn.failed', error: { message: 'workspace routing discovery unauthorized (401)' } },
+  ]);
+  assert.equal(result.type, 'result');
+  assert.equal(result.isError, true);
+  assert.equal(result.authExpired, true);
 });
 
 const fs = require('node:fs');

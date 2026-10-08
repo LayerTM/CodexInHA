@@ -63,6 +63,19 @@ function normalizeUsage(u) {
   };
 }
 
+// The server refused the run's credential: OpenAI answers 401 Unauthorized.
+// `codex exec --json` carries no error kind, only text, so the status in the
+// text is the signal. Measured with codex-cli 0.160.0:
+// - a ChatGPT sign-in whose renewal the server refused:
+//   `workspace routing discovery unauthorized (401)`
+// - an API key the server does not accept:
+//   `unexpected status 401 Unauthorized: Incorrect API key provided: … auth error code: invalid_api_key`
+// The CLI's `Reconnecting... n/5 (…)` lines carry the same text. A retry cannot
+// end differently until someone signs in again.
+function isAuthRejected(message) {
+  return typeof message === 'string' && /\b401\b/.test(message) && /unauthorized/i.test(message);
+}
+
 function errorText(err) {
   if (err && typeof err === 'object' && typeof err.message === 'string') return err.message;
   return typeof err === 'string' ? err : 'unknown error';
@@ -90,7 +103,7 @@ function createDecoder({ allowedTools, basename, haServer = HA_SERVER }) {
   const state = {
     threadId: null,
     completed: false,
-    failure: null, // { reason, message }
+    failure: null, // { reason, message, authExpired? }
     finalText: null,
     usage: null,
     warnings: [],
@@ -98,8 +111,9 @@ function createDecoder({ allowedTools, basename, haServer = HA_SERVER }) {
   };
 
   function fail(reason, message) {
-    if (!state.failure) state.failure = { reason, message };
-    return { kind: 'failure', reason, message };
+    const failure = isAuthRejected(message) ? { reason, message, authExpired: true } : { reason, message };
+    if (!state.failure) state.failure = failure;
+    return { kind: 'failure', ...failure };
   }
 
   function violate(what) {
@@ -244,4 +258,4 @@ function createDecoder({ allowedTools, basename, haServer = HA_SERVER }) {
   return { line, end };
 }
 
-module.exports = { createDecoder, normalizeUsage, isKnownWarning, HA_SERVER, KNOWN_WARNINGS };
+module.exports = { createDecoder, normalizeUsage, isKnownWarning, isAuthRejected, HA_SERVER, KNOWN_WARNINGS };
