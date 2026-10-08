@@ -101,6 +101,20 @@ test('only a 401 Unauthorized is a refused sign-in', () => {
   assert.equal(isAuthRejected(undefined), false);
 });
 
+test('the status is matched whatever its case', () => {
+  assert.equal(isAuthRejected('UNAUTHORIZED (401)'), true);
+  assert.equal(decode([...START, { type: 'error', message: 'Unauthorized: 401' }], 1).outcome.authExpired, true);
+});
+
+test('a tool or MCP server answering 401 is not a refused sign-in', () => {
+  const message = 'MCP client for `homeassistant` failed to start: 401 Unauthorized';
+  const { events, outcome } = decode([...START, { type: 'item.completed', item: { id: 'e1', type: 'error', message } }], 1);
+  assert.equal(outcome.status, 'error');
+  assert.equal(outcome.reason, 'cli_error');
+  assert.equal(outcome.authExpired, undefined);
+  assert.equal(events[0].authExpired, undefined);
+});
+
 for (const [name, what] of [['command-execution', 'command_execution'], ['file-change', 'file_change'], ['web-search', 'web_search']]) {
   test(`a ${what} item is a policy violation (recorded run)`, () => {
     const { outcome } = decode(fixture(name));

@@ -16,25 +16,25 @@ Runs the full [Codex CLI](https://github.com/openai/codex) inside Home Assistant
 
 | Method | How |
 |---|---|
-| **ChatGPT plan (recommended)** | Leave **API Key** empty, open the console, run `codex login` and follow the login URL. The sign-in is stored in `/data/codex` and survives restarts and updates — but OpenAI's server can stop accepting it, for example after a long spell without use. See [When the sign-in stops working](#when-the-sign-in-stops-working). |
-| **API key** | Paste a key from [platform.openai.com](https://platform.openai.com) into **API Key**. Pay-per-use. A key does not expire on its own, so it is the choice for an add-on that is asked rarely and must answer unattended. Remote control needs the ChatGPT sign-in. |
+| **ChatGPT plan (recommended)** | Leave **API Key** empty, open the console, run `codex login` and follow the login URL. The sign-in is stored in `/data/codex` and survives restarts and updates — but OpenAI's server can stop accepting it, for example when it has expired or was revoked. See [When the sign-in stops working](#when-the-sign-in-stops-working). |
+| **API key** | Paste a key from [platform.openai.com](https://platform.openai.com) into **API Key**. Pay-per-use. It needs no renewal from a sign-in, so it suits an add-on that is asked rarely and must answer unattended. Remote control needs the ChatGPT sign-in. |
 
 ### When the sign-in stops working
 
 Codex renews a ChatGPT sign-in by itself while it is in use. If OpenAI's server
-refuses the renewal — the sign-in sat unused too long, was revoked, or you
-signed in to another account elsewhere — every request fails until you sign in
+refuses the renewal — for example because the sign-in expired or was revoked —
+every request fails until you sign in
 again. The add-on cannot renew it for you.
 
 - **What you see:** requests from the **AI Agent** integration (Assist, automations)
-  fail, and Codex in the console stops with an `unauthorized (401)` error. `codex login
+  fail with an `unauthorized (401)` error. `codex login
   status` still reports *Logged in*, because it only checks that a sign-in is
   stored, not that the server still accepts it; the same holds for `ready` in
   `/api/status`.
 - **Fix:** in a shell tab of the console run `codex logout`, then `codex login`.
   Nothing else needs to change: requests from the integration use the console's
   sign-in, so the next one already runs with the new one.
-- **Avoid it:** if the add-on is asked only now and then, use an **API key** instead.
+- **Avoid it:** an **API key** needs no sign-in renewal.
 
 ## The console
 
@@ -386,7 +386,7 @@ Everything that matters lives in `/data` and survives restarts and updates: logi
 ## Troubleshooting
 
 - **Blank screen** — check the add-on log; restart the add-on.
-- **Every AI Agent request fails, Codex says `unauthorized (401)`** — the ChatGPT sign-in is no longer accepted; see [When the sign-in stops working](#when-the-sign-in-stops-working).
+- **Every AI Agent request fails with `unauthorized (401)`** — the ChatGPT sign-in is no longer accepted; see [When the sign-in stops working](#when-the-sign-in-stops-working).
 - **401 / frozen after long idle** — the ingress session expires after 15 minutes without traffic; the console reloads automatically, or refresh the page.
 - **Copy does not reach the clipboard** — rare now (selecting text copies in the pointer gesture, which works over plain HTTP too). If a browser blocks the clipboard even inside a gesture, the text is still saved to the 📥 tray — one tap to copy — and serving HA over HTTPS avoids it entirely.
 - **TLS on Home Assistant itself** — if you set `ssl_certificate` in the `http:` integration, or moved

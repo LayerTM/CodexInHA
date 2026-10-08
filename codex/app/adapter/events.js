@@ -110,8 +110,11 @@ function createDecoder({ allowedTools, basename, haServer = HA_SERVER }) {
     toolCalls: new Map(), // item id -> { server, published, tool, status, error }
   };
 
-  function fail(reason, message) {
-    const failure = isAuthRejected(message) ? { reason, message, authExpired: true } : { reason, message };
+  // `transport` marks Codex's own transport failures (a top-level `error` or
+  // `turn.failed`). Only those can say the sign-in was refused: an item error
+  // with the same status is a tool or MCP server failing, not the sign-in.
+  function fail(reason, message, transport = false) {
+    const failure = transport && isAuthRejected(message) ? { reason, message, authExpired: true } : { reason, message };
     if (!state.failure) state.failure = failure;
     return { kind: 'failure', ...failure };
   }
@@ -204,10 +207,10 @@ function createDecoder({ allowedTools, basename, haServer = HA_SERVER }) {
         out = state.usage ? { kind: 'usage', usage: state.usage } : null;
         break;
       case 'turn.failed':
-        out = fail('turn_failed', errorText(ev.error));
+        out = fail('turn_failed', errorText(ev.error), true);
         break;
       case 'error':
-        out = fail('cli_error', errorText(ev));
+        out = fail('cli_error', errorText(ev), true);
         break;
       default:
         // A new event type is not evidence of anything; it cannot make a run
