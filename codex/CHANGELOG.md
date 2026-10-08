@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.1.7
+
+- Codex CLI 0.159.3 → 0.161.0
+  ([0.160.0](https://github.com/openai/codex/releases/tag/rust-v0.160.0),
+  [0.160.1](https://github.com/openai/codex/releases/tag/rust-v0.160.1),
+  [0.161.0](https://github.com/openai/codex/releases/tag/rust-v0.161.0)).
+  With **Auto-Update** on, an installed add-on already moves its CLI at start;
+  this is the version a fresh install begins with.
+- Node.js 26.10.0 → 26.11.1
+  ([26.11.0](https://github.com/nodejs/node/releases/tag/v26.11.0),
+  [26.11.1](https://github.com/nodejs/node/releases/tag/v26.11.1)).
+
 ## 0.1.6
 
 - Ask to switch a device by its name — "turn off the hallway lamp" — and the
