@@ -1,5 +1,25 @@
 # Changelog
 
+## 0.1.7
+
+- Ask to switch a device by its name on Home Assistant 2026.10 and it switches
+  again. Home Assistant 2026.10 changed how it reports a device lookup, and every
+  such request was answered as if the device did not exist
+  (ha-agent-core 0.8.1 → [0.8.2](https://github.com/LayerTM/ha-agent-core/releases/tag/v0.8.2)).
+- The shared core now ships `proxy-addr` 2.0.8, which fixes
+  [GHSA-jqcg-44mw-7w3h](https://github.com/advisories/GHSA-jqcg-44mw-7w3h).
+  The add-on was not exposed: it never trusts a proxy for client addresses.
+- The dashboard screenshot helper uses `playwright-core` 1.64.0 (was 1.63.0).
+- Codex CLI 0.159.3 → 0.161.0
+  ([0.160.0](https://github.com/openai/codex/releases/tag/rust-v0.160.0),
+  [0.160.1](https://github.com/openai/codex/releases/tag/rust-v0.160.1),
+  [0.161.0](https://github.com/openai/codex/releases/tag/rust-v0.161.0)).
+  With **Auto-Update** on, an installed add-on already moves its CLI at start;
+  this is the version a fresh install begins with.
+- Node.js 26.10.0 → 26.11.1
+  ([26.11.0](https://github.com/nodejs/node/releases/tag/v26.11.0),
+  [26.11.1](https://github.com/nodejs/node/releases/tag/v26.11.1)).
+
 ## 0.1.6
 
 - Ask to switch a device by its name — "turn off the hallway lamp" — and the
