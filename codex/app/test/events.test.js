@@ -5,7 +5,7 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
 
-const { createDecoder, normalizeUsage, isKnownWarning } = require('../adapter/events.js');
+const { createDecoder, normalizeUsage, isKnownWarning, isAuthRejected } = require('../adapter/events.js');
 
 function fixture(name) {
   return fs.readFileSync(path.join(__dirname, 'fixtures', 'exec', `${name}.jsonl`), 'utf8').split('\n');
@@ -63,6 +63,56 @@ test('a failed turn is a failure even though the process may exit 0 (recorded ru
   assert.match(outcome.message, /invalid_json_schema/);
   const onlyTurnFailed = fixture('turn-failed-schema').filter((l) => !l.startsWith('{"type":"error"'));
   assert.equal(decode(onlyTurnFailed, 1).outcome.reason, 'turn_failed');
+});
+
+// Recorded with codex-cli 0.160.0 against OpenAI: a ChatGPT sign-in whose
+// renewal the server refused, and an API key it does not accept.
+for (const [name, text] of [
+  ['auth-chatgpt-rejected', /workspace routing discovery unauthorized \(401\)/],
+  ['auth-api-key-rejected', /invalid_api_key/],
+]) {
+  test(`a refused sign-in is reported as authExpired from its first line (recorded run: ${name})`, () => {
+    const lines = fixture(name);
+    const { events, outcome } = decode(lines, 1);
+    assert.equal(outcome.status, 'error');
+    assert.equal(outcome.authExpired, true);
+    assert.match(outcome.message, text);
+    // The run is judged on the first 401 the CLI prints, not on its tenth.
+    assert.equal(events[0].kind, 'failure');
+    assert.equal(events[0].authExpired, true);
+    // The terminal line alone says the same.
+    const terminal = lines.filter((l) => l.startsWith('{"type":"turn.failed"'));
+    assert.equal(terminal.length, 1);
+    assert.equal(decode(terminal, 1).outcome.authExpired, true);
+  });
+}
+
+test('only a 401 Unauthorized is a refused sign-in', () => {
+  assert.equal(decode(fixture('turn-failed-schema'), 1).outcome.authExpired, undefined);
+  for (const message of [
+    'Reconnecting... 1/5 (stream disconnected before completion)',
+    'unexpected status 500 Internal Server Error: unauthorized proxy',
+    'unexpected status 429 Too Many Requests: retry after 401 ms',
+    'exceeded retry limit, last status: 503 Service Unavailable',
+  ]) {
+    assert.equal(isAuthRejected(message), false, message);
+    assert.equal(decode([...START, { type: 'turn.failed', error: { message } }], 1).outcome.authExpired, undefined, message);
+  }
+  assert.equal(isAuthRejected(undefined), false);
+});
+
+test('the status is matched whatever its case', () => {
+  assert.equal(isAuthRejected('UNAUTHORIZED (401)'), true);
+  assert.equal(decode([...START, { type: 'error', message: 'Unauthorized: 401' }], 1).outcome.authExpired, true);
+});
+
+test('a tool or MCP server answering 401 is not a refused sign-in', () => {
+  const message = 'MCP client for `homeassistant` failed to start: 401 Unauthorized';
+  const { events, outcome } = decode([...START, { type: 'item.completed', item: { id: 'e1', type: 'error', message } }], 1);
+  assert.equal(outcome.status, 'error');
+  assert.equal(outcome.reason, 'cli_error');
+  assert.equal(outcome.authExpired, undefined);
+  assert.equal(events[0].authExpired, undefined);
 });
 
 for (const [name, what] of [['command-execution', 'command_execution'], ['file-change', 'file_change'], ['web-search', 'web_search']]) {

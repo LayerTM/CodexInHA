@@ -320,13 +320,16 @@ function createDecoder(spec) {
   // `deterministic` tells the core whether a retry could ever end differently.
   // A policy violation could not: the run tried something the profile forbids,
   // and the same request would try it again, so it is not re-run.
-  const failure = (message, reason) => {
+  // `authExpired` tells it the server refused the sign-in (events.js decides);
+  // the core reports that as its own reason and does not retry it either.
+  const failure = (message, reason, authExpired) => {
     done = true;
     finish();
     return {
       type: 'result',
       isError: true,
       deterministic: reason === 'policy',
+      ...(authExpired ? { authExpired: true } : {}),
       structured: undefined,
       text: message,
       numTurns: null,
@@ -351,7 +354,7 @@ function createDecoder(spec) {
           usage = ev.usage;
           break;
         case 'failure':
-          terminal = failure(ev.message, ev.reason);
+          terminal = failure(ev.message, ev.reason, ev.authExpired);
           break;
         default:
           break;
@@ -377,7 +380,7 @@ function createDecoder(spec) {
       finish();
       const outcome = decoder.end(0);
       if (outcome.status !== 'ok') {
-        out.push(failure(outcome.message, outcome.reason));
+        out.push(failure(outcome.message, outcome.reason, outcome.authExpired));
         return out;
       }
       out.push({

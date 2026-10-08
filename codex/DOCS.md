@@ -16,8 +16,25 @@ Runs the full [Codex CLI](https://github.com/openai/codex) inside Home Assistant
 
 | Method | How |
 |---|---|
-| **ChatGPT plan (recommended)** | Leave **API Key** empty, open the console, run `codex login` and follow the login URL. The login persists across restarts. |
-| **API key** | Paste a key from [platform.openai.com](https://platform.openai.com) into **API Key**. Pay-per-use. |
+| **ChatGPT plan (recommended)** | Leave **API Key** empty, open the console, run `codex login` and follow the login URL. The sign-in is stored in `/data/codex` and survives restarts and updates — but OpenAI's server can stop accepting it, for example when it has expired or was revoked. See [When the sign-in stops working](#when-the-sign-in-stops-working). |
+| **API key** | Paste a key from [platform.openai.com](https://platform.openai.com) into **API Key**. Pay-per-use. It needs no renewal from a sign-in, so it suits an add-on that is asked rarely and must answer unattended. Remote control needs the ChatGPT sign-in. |
+
+### When the sign-in stops working
+
+Codex renews a ChatGPT sign-in by itself while it is in use. If OpenAI's server
+refuses the renewal — for example because the sign-in expired or was revoked —
+every request fails until you sign in
+again. The add-on cannot renew it for you.
+
+- **What you see:** requests from the **AI Agent** integration (Assist, automations)
+  fail with an `unauthorized (401)` error. `codex login
+  status` still reports *Logged in*, because it only checks that a sign-in is
+  stored, not that the server still accepts it; the same holds for `ready` in
+  `/api/status`.
+- **Fix:** in a shell tab of the console run `codex logout`, then `codex login`.
+  Nothing else needs to change: requests from the integration use the console's
+  sign-in, so the next one already runs with the new one.
+- **Avoid it:** an **API key** needs no sign-in renewal.
 
 ## The console
 
@@ -270,7 +287,7 @@ behind the Prompt API, so the integration can adapt to it:
 
 | field | meaning |
 |---|---|
-| `ready` | `true` only when the CLI is installed **and** the add-on has a sign-in: either `codex login` has been completed in the console (it stores the sign-in under `/data/codex`) or **API Key** is set in the options. A freshly installed add-on reports `false` until one of those happens — the normal state between installing and signing in, not a fault, and no request has to be made first |
+| `ready` | `true` only when the CLI is installed **and** the add-on has a sign-in: either `codex login` has been completed in the console (it stores the sign-in under `/data/codex`) or **API Key** is set in the options. A freshly installed add-on reports `false` until one of those happens — the normal state between installing and signing in, not a fault, and no request has to be made first. `true` means a sign-in is stored, not that OpenAI still accepts it (see [When the sign-in stops working](#when-the-sign-in-stops-working)) |
 | `engine` | the agent's stable name; `codex` for this add-on |
 | `engine_version` | the agent's version, as `codex --version` reports it; empty until it has been read |
 | `core_version`, `core_commit` | the release and commit of the shared core this add-on runs; the add-on log states the same when the console starts: `Codex Console listening on [::]:8099 (core X.Y.Z, commit <12 hex>)` |
@@ -369,6 +386,7 @@ Everything that matters lives in `/data` and survives restarts and updates: logi
 ## Troubleshooting
 
 - **Blank screen** — check the add-on log; restart the add-on.
+- **Every AI Agent request fails with `unauthorized (401)`** — the ChatGPT sign-in is no longer accepted; see [When the sign-in stops working](#when-the-sign-in-stops-working).
 - **401 / frozen after long idle** — the ingress session expires after 15 minutes without traffic; the console reloads automatically, or refresh the page.
 - **Copy does not reach the clipboard** — rare now (selecting text copies in the pointer gesture, which works over plain HTTP too). If a browser blocks the clipboard even inside a gesture, the text is still saved to the 📥 tray — one tap to copy — and serving HA over HTTPS avoids it entirely.
 - **TLS on Home Assistant itself** — if you set `ssl_certificate` in the `http:` integration, or moved

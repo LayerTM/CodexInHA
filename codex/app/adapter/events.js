@@ -63,6 +63,19 @@ function normalizeUsage(u) {
   };
 }
 
+// The server refused the run's credential: OpenAI answers 401 Unauthorized.
+// `codex exec --json` carries no error kind, only text, so the status in the
+// text is the signal. Measured with codex-cli 0.160.0:
+// - a ChatGPT sign-in whose renewal the server refused:
+//   `workspace routing discovery unauthorized (401)`
+// - an API key the server does not accept:
+//   `unexpected status 401 Unauthorized: Incorrect API key provided: … auth error code: invalid_api_key`
+// The CLI's `Reconnecting... n/5 (…)` lines carry the same text. A retry cannot
+// end differently until someone signs in again.
+function isAuthRejected(message) {
+  return typeof message === 'string' && /\b401\b/.test(message) && /unauthorized/i.test(message);
+}
+
 function errorText(err) {
   if (err && typeof err === 'object' && typeof err.message === 'string') return err.message;
   return typeof err === 'string' ? err : 'unknown error';
@@ -90,16 +103,20 @@ function createDecoder({ allowedTools, basename, haServer = HA_SERVER }) {
   const state = {
     threadId: null,
     completed: false,
-    failure: null, // { reason, message }
+    failure: null, // { reason, message, authExpired? }
     finalText: null,
     usage: null,
     warnings: [],
     toolCalls: new Map(), // item id -> { server, published, tool, status, error }
   };
 
-  function fail(reason, message) {
-    if (!state.failure) state.failure = { reason, message };
-    return { kind: 'failure', reason, message };
+  // `transport` marks Codex's own transport failures (a top-level `error` or
+  // `turn.failed`). Only those can say the sign-in was refused: an item error
+  // with the same status is a tool or MCP server failing, not the sign-in.
+  function fail(reason, message, transport = false) {
+    const failure = transport && isAuthRejected(message) ? { reason, message, authExpired: true } : { reason, message };
+    if (!state.failure) state.failure = failure;
+    return { kind: 'failure', ...failure };
   }
 
   function violate(what) {
@@ -190,10 +207,10 @@ function createDecoder({ allowedTools, basename, haServer = HA_SERVER }) {
         out = state.usage ? { kind: 'usage', usage: state.usage } : null;
         break;
       case 'turn.failed':
-        out = fail('turn_failed', errorText(ev.error));
+        out = fail('turn_failed', errorText(ev.error), true);
         break;
       case 'error':
-        out = fail('cli_error', errorText(ev));
+        out = fail('cli_error', errorText(ev), true);
         break;
       default:
         // A new event type is not evidence of anything; it cannot make a run
@@ -244,4 +261,4 @@ function createDecoder({ allowedTools, basename, haServer = HA_SERVER }) {
   return { line, end };
 }
 
-module.exports = { createDecoder, normalizeUsage, isKnownWarning, HA_SERVER, KNOWN_WARNINGS };
+module.exports = { createDecoder, normalizeUsage, isKnownWarning, isAuthRejected, HA_SERVER, KNOWN_WARNINGS };
