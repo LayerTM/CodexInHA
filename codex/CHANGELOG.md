@@ -1,5 +1,19 @@
 # Changelog
 
+## 0.1.8
+
+- When OpenAI no longer accepts the add-on's sign-in, a request now says so
+  instead of failing as a passing model error. It is not retried, its reason is
+  `auth-expired`, and a request that would change something is answered
+  `503 auth_expired`. `/api/status` publishes `auth` — `ok`, `expired` or
+  `unknown`, and since when — kept across restarts, so the integration can ask
+  you to sign in again without running a request first. See
+  [When the sign-in stops working](DOCS.md#when-the-sign-in-stops-working)
+  (ha-agent-core 0.8.2 → [0.9.0](https://github.com/LayerTM/ha-agent-core/releases/tag/v0.9.0)).
+- A degraded answer names the reason its run failed (`reason`).
+- A request that failed after a retry is logged with how each earlier attempt
+  ended.
+
 ## 0.1.7
 
 - Ask to switch a device by its name on Home Assistant 2026.10 and it switches

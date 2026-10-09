@@ -27,7 +27,10 @@ every request fails until you sign in
 again. The add-on cannot renew it for you.
 
 - **What you see:** requests from the **AI Agent** integration (Assist, automations)
-  fail with an `unauthorized (401)` error. `codex login
+  fail, and are not retried. Their reason is `auth-expired`; a request that would
+  change something is answered `503 auth_expired` (*the agent is no longer signed
+  in: sign in again*), and `auth` in `/api/status` reads `expired`. In the console,
+  Codex itself reports `unauthorized (401)`. `codex login
   status` still reports *Logged in*, because it only checks that a sign-in is
   stored, not that the server still accepts it; the same holds for `ready` in
   `/api/status`.
@@ -288,6 +291,7 @@ behind the Prompt API, so the integration can adapt to it:
 | field | meaning |
 |---|---|
 | `ready` | `true` only when the CLI is installed **and** the add-on has a sign-in: either `codex login` has been completed in the console (it stores the sign-in under `/data/codex`) or **API Key** is set in the options. A freshly installed add-on reports `false` until one of those happens — the normal state between installing and signing in, not a fault, and no request has to be made first. `true` means a sign-in is stored, not that OpenAI still accepts it (see [When the sign-in stops working](#when-the-sign-in-stops-working)) |
+| `auth` | whether OpenAI still accepts the sign-in, as `{"state", "since"}`: `state` is `ok` once a request was answered, `expired` once one was refused for its sign-in, and `unknown` before either has happened; `since` is when that state began (ISO-8601), or `null`. It is kept across restarts and updates, and reading it runs no request |
 | `engine` | the agent's stable name; `codex` for this add-on |
 | `engine_version` | the agent's version, as `codex --version` reports it; empty until it has been read |
 | `core_version`, `core_commit` | the release and commit of the shared core this add-on runs; the add-on log states the same when the console starts: `Codex Console listening on [::]:8099 (core X.Y.Z, commit <12 hex>)` |
@@ -321,7 +325,7 @@ changed without an add-on release.
 | `recovered` | how many succeeded only after a retry (a subset of the successes, never of `degraded`) |
 | `consecutive_ok` | successes since the last failure — proves a recovery by evidence instead of by a timer |
 | `consecutive_failed` | failures since the last success — makes a fresh outage visible before it has diluted the window enough to move the rate |
-| `last_reason` | why the most recent failure failed: a short token such as `model-error` or `timeout`, never prompt text or model output |
+| `last_reason` | why the most recent failure failed: a short token such as `model-error`, `timeout` or `auth-expired` (OpenAI no longer accepts the sign-in; see [When the sign-in stops working](#when-the-sign-in-stops-working)), never prompt text or model output |
 | `last_failure_ts` | when that same failure happened |
 | `window_from_ts` / `window_to_ts` | the span the window actually covers |
 | `window_dated` | how many of `recent` those two bounds were measured from |
@@ -386,7 +390,7 @@ Everything that matters lives in `/data` and survives restarts and updates: logi
 ## Troubleshooting
 
 - **Blank screen** — check the add-on log; restart the add-on.
-- **Every AI Agent request fails with `unauthorized (401)`** — the ChatGPT sign-in is no longer accepted; see [When the sign-in stops working](#when-the-sign-in-stops-working).
+- **Every AI Agent request fails with `auth-expired`, or Codex reports `unauthorized (401)`** — the ChatGPT sign-in is no longer accepted; see [When the sign-in stops working](#when-the-sign-in-stops-working).
 - **401 / frozen after long idle** — the ingress session expires after 15 minutes without traffic; the console reloads automatically, or refresh the page.
 - **Copy does not reach the clipboard** — rare now (selecting text copies in the pointer gesture, which works over plain HTTP too). If a browser blocks the clipboard even inside a gesture, the text is still saved to the 📥 tray — one tap to copy — and serving HA over HTTPS avoids it entirely.
 - **TLS on Home Assistant itself** — if you set `ssl_certificate` in the `http:` integration, or moved
