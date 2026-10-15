@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.1.9
+
+- Codex CLI 0.161.0 → 0.162.1
+  ([0.162.0](https://github.com/openai/codex/releases/tag/rust-v0.162.0),
+  [0.162.1](https://github.com/openai/codex/releases/tag/rust-v0.162.1)).
+  With **Auto-Update** on, an installed add-on already moves its CLI at start;
+  this is the version a fresh install begins with.
+- Node.js 26.11.1 → [26.12.0](https://github.com/nodejs/node/releases/tag/v26.12.0).
+
 ## 0.1.8
 
 - When OpenAI no longer accepts the add-on's sign-in, a request now says so
