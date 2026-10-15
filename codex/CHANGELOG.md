@@ -2,6 +2,13 @@
 
 ## 0.1.9
 
+- The shared core ships Express 5.3.0 with `qs` 6.16.0, which fixes
+  [GHSA-w7fw-mjwx-w883](https://github.com/advisories/GHSA-w7fw-mjwx-w883),
+  [GHSA-4mjr-xmp4-gh2g](https://github.com/advisories/GHSA-4mjr-xmp4-gh2g) and
+  [GHSA-x5fp-wj9c-mxmx](https://github.com/advisories/GHSA-x5fp-wj9c-mxmx).
+  The add-on was not exposed: no request's query string or body is parsed by
+  `qs`. The dashboard screenshot helper uses `playwright-core` 1.64.1
+  (ha-agent-core 0.9.0 → [0.9.1](https://github.com/LayerTM/ha-agent-core/releases/tag/v0.9.1)).
 - Codex CLI 0.161.0 → 0.162.1
   ([0.162.0](https://github.com/openai/codex/releases/tag/rust-v0.162.0),
   [0.162.1](https://github.com/openai/codex/releases/tag/rust-v0.162.1)).
