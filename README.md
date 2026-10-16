@@ -107,6 +107,16 @@ a module that arrives with the core, so they run with the command above this one
 `npm run lint` and `npm run typecheck` do need the assembled tree: eslint and typescript arrive with
 the core, not with this repository.
 
+Before opening a pull request, also run the repository scans from the checkout root — both must
+report nothing:
+
+```sh
+python .github/scripts/secret_scan.py .
+python .github/scripts/hygiene_scan.py .
+```
+
+Behaviour changes get an entry in `codex/CHANGELOG.md`.
+
 ## Licence
 
 [MIT](LICENSE) © 2026 LayerTM
