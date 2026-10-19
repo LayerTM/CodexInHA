@@ -64,6 +64,13 @@ Sign in from the console: run `codex login` and follow the link to use your Chat
 - For chat from Assist: the companion **AI Agent** integration and the **Model Context Protocol
   Server** integration
 
+## Works with
+
+- [**AI Agent**](https://github.com/LayerTM/claude-ha) (`claude_ha`) — the companion integration
+  that puts this add-on behind Assist, in text and in voice.
+- [**Claude Code for Home Assistant**](https://github.com/LayerTM/ClaudeInHA) — the same console and
+  the same prompt API running Anthropic's Claude Code.
+
 ## Documentation
 
 The add-on's **Documentation** tab, or [`codex/DOCS.md`](codex/DOCS.md): every option, what the
