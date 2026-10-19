@@ -16,10 +16,13 @@ ENV LANG=C.UTF-8
 #   dependencies
 # - tmux: the session survives a browser disconnect
 # - ripgrep: fast search from the console
+# - bubblewrap: the Codex CLI probes PATH for `bwrap` at every start and warns
+#   when it is absent, then falls back to its bundled copy
 # - the rest: general command-line tooling for the agent and the MCP servers
 RUN apt-get update \
     && apt-get install -y --no-install-recommends \
         bash \
+        bubblewrap \
         build-essential \
         ca-certificates \
         curl \
