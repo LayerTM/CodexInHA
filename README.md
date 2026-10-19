@@ -22,6 +22,8 @@ console — and answering from Assist, in text and in voice.
 
 <img src="images/console.jpg" alt="The add-on's console: the Codex CLI in one tab, a shell in another" width="820">
 
+<img src="images/console-demo.gif" alt="Asking Codex in the console whether a lamp is on: it reads the bundled entity skill, checks the state with ha-state and answers" width="820">
+
 </div>
 
 ## What you get
