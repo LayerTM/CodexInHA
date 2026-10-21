@@ -25,7 +25,6 @@ function configs(argv) {
 
 function launch(overrides = {}) {
   return L.promptLaunch({
-    mode: 'read',
     features: FEATURES,
     workDir: '/run/prompt/w1',
     schemaFile: '/run/prompt/schema.json',
@@ -167,12 +166,8 @@ test('a prompt run without a schema is refused before it starts', () => {
   assert.ok(launch().argv.includes('--output-schema'), 'the schema is passed');
 });
 
-test('write mode uses the same restrictions as read mode', () => {
-  assert.deepEqual(launch({ mode: 'write' }).argv, launch().argv);
-});
-
 test('the Home Assistant server is registered with the token only in the environment', () => {
-  const { argv, env } = launch({ mode: 'write', ha: { ...HA, tools: ['HassTurnOn', 'GetLiveContext', 'HassTurnOn'] } });
+  const { argv, env } = launch({ ha: { ...HA, tools: ['HassTurnOn', 'GetLiveContext', 'HassTurnOn'] } });
   assert.deepEqual(configs(argv).slice(4), [
     'mcp_servers.ha.url="http://127.0.0.1:8099/mcp"',
     'mcp_servers.ha.bearer_token_env_var="CODEX_HA_MCP_TOKEN"',
@@ -208,7 +203,6 @@ test('values that could change the configuration are refused', () => {
   assert.throws(() => launch({ workDir: 'relative' }), /absolute/);
   assert.throws(() => launch({ schemaFile: '/x\n/y' }), /absolute/);
   assert.throws(() => launch({ imageFile: 'snap.jpg' }), /absolute/);
-  assert.throws(() => launch({ mode: 'console' }), /read or write/);
   // A control character is escaped, not refused: it arrives in text somebody
   // already saved, and one character may not fail the whole request.
   assert.equal(L.tomlString(`a${String.fromCharCode(0)}b`), '"a\\u0000b"');
@@ -311,7 +305,7 @@ test('the console is unrestricted: bypass when asked, then the extra arguments a
 test('the one-shot question denies everything a prompt run denies', () => {
   const ask = L.askLaunch({ features: FEATURES, workDir: '/tmp/ask' });
   const prompt = L.promptLaunch({
-    mode: 'read', features: FEATURES, workDir: '/tmp/ask', schemaFile: '/tmp/s.json',
+    features: FEATURES, workDir: '/tmp/ask', schemaFile: '/tmp/s.json',
   });
   assert.deepEqual(disabled(ask.argv), disabled(prompt.argv));
   // Only a feature this CLI still has can be switched off: an unknown name is a
@@ -331,7 +325,7 @@ test('the one-shot question denies everything a prompt run denies', () => {
 test('the one-shot question is the prompt profile with nothing added', () => {
   const ask = L.askLaunch({ features: FEATURES, workDir: '/tmp/ask' });
   const prompt = L.promptLaunch({
-    mode: 'read', features: FEATURES, workDir: '/tmp/ask', schemaFile: '/tmp/s.json',
+    features: FEATURES, workDir: '/tmp/ask', schemaFile: '/tmp/s.json',
   });
   const withoutSchema = [...prompt.argv];
   const at = withoutSchema.indexOf('--output-schema');

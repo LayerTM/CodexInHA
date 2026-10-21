@@ -253,7 +253,6 @@ function launchRun(spec, { env }) {
   // the decoder learns which directory to release when the run ends.
   runDirs.set(spec, runDir);
   const built = launch.promptLaunch({
-    mode: spec.read ? 'read' : 'write',
     features: features(),
     workDir: path.join(runDir, 'work'),
     schemaFile: writeSchema(runDir, spec.schema),

@@ -15,6 +15,14 @@
   longer shows a "could not find bubblewrap on PATH" warning in the console
   footer at every start. Read-only prompt runs keep refusing writes exactly as
   before.
+- A confirmed action no longer runs a model: the core calls Home Assistant's own
+  tool for each action and reports every outcome in `actions`. If any action
+  fails the answer is `502 action_failed` with the same list, so the
+  integration never reports "Done" for a change that did not happen. A confirmed
+  action also no longer depends on the sign-in being valid. The `chat_model_write`
+  option stays so stored options still load, but is no longer used, and the
+  adapter's write launch mode is removed with it (ha-agent-core 0.10.0, now
+  pinned at its final commit).
 
 ## 0.1.10
 

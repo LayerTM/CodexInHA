@@ -6,7 +6,7 @@
 //
 // - console: the owner's own interactive session. Unrestricted: the bypass
 //   switch when the option asks for it, then every extra argument as given.
-// - prompt (read / write): one request from the prompt API. Nothing from the
+// - prompt: one request from the prompt API. Nothing from the
 //   user's configuration, rules, skills, plugins, apps or instructions; no shell,
 //   no file access, no web; only the request's own Home Assistant MCP server
 //   with only the tools the request is allowed to call.
@@ -19,8 +19,6 @@
 
 const fs = require('node:fs');
 const path = require('node:path');
-
-const PROMPT_MODES = new Set(['read', 'write']);
 
 // What bounds a run. The two profiles have two different answers, and each one
 // is declared once, here.
@@ -215,7 +213,6 @@ function askLaunch(p) {
  * The argv (without the executable) and environment of one prompt-API run.
  *
  * @param {object} p
- * @param {'read'|'write'} p.mode
  * @param {Array<{name: string, stage: string}>} p.features  parsed `codex features list`
  * @param {string} p.workDir        empty, private directory the run starts in
  * @param {string} p.schemaFile     JSON schema of the final answer, in the closed
@@ -228,7 +225,6 @@ function askLaunch(p) {
  * @returns {{argv: string[], cwd: string, env: Record<string, string>}}
  */
 function promptLaunch(p) {
-  if (!p || !PROMPT_MODES.has(p.mode)) throw new Error('prompt mode must be read or write');
   const workDir = checkAbsolute('work directory', p.workDir);
   // Every run is held to a schema: without one the model answers in whatever
   // format the request names, and the run fails as a model error.

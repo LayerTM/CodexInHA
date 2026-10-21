@@ -27,9 +27,9 @@ every request fails until you sign in
 again. The add-on cannot renew it for you.
 
 - **What you see:** requests from the **AI Agent** integration (Assist, automations)
-  fail, and are not retried. Their reason is `auth-expired`; a request that would
-  change something is answered `503 auth_expired` (*the agent is no longer signed
-  in: sign in again*), and `auth` in `/api/status` reads `expired`. In the console,
+  fail, and are not retried. Their reason is `auth-expired`, and `auth` in
+  `/api/status` reads `expired`. A confirmed action does not run a model, so it
+  keeps working while the sign-in is expired. In the console,
   Codex itself reports `unauthorized (401)`. `codex login
   status` still reports *Logged in*, because it only checks that a sign-in is
   stored, not that the server still accepts it; the same holds for `ready` in
@@ -259,9 +259,12 @@ deliberately much more restricted than the interactive console:
 - **Actions require confirmation, and the confirmed action is executed from the
   validated request only.** A read request that would change state returns a
   *proposal* rather than acting; the integration asks you to confirm; only then
-  is a second, tightly-scoped call allowed to perform exactly that action — and
-  that call is driven solely by the validated intent, never by the original
-  free-form message, so untrusted text never reaches the state-changing path.
+  is exactly that action performed — directly through Home Assistant's own
+  tool, with no model involved, driven solely by the validated intent and never
+  by the original free-form message, so untrusted text never reaches the
+  state-changing path. The response lists each action with its outcome; if
+  Home Assistant did not carry out every one, the answer is `502 action_failed`
+  and the integration reports what failed.
 - Rate-limited, concurrency-capped, time-bounded, output-capped, and
   secret-redacted; no transcript of a request is kept once it has answered. A
   Home Assistant call a request makes is written to the audit log (`ha-audit`)
@@ -276,9 +279,9 @@ deliberately much more restricted than the interactive console:
   different model from the interactive console (`chat_model`) — e.g. a quicker,
   cheaper one for snappy Assist replies — and spoken (voice) turns can use an even
   faster model (`chat_model_voice`), since voice answers are short and lower
-  latency matters more there than raw capability. Carrying out a confirmed action
-  (`chat_model_write`) and answering from a camera snapshot (`chat_model_camera`)
-  can each have their own model too. All of these are optional; leave them empty
+  latency matters more there than raw capability. Answering from a camera snapshot
+  (`chat_model_camera`) can have its own model too. `chat_model_write` is no
+  longer used: a confirmed action runs without a model. All of these are optional; leave them empty
   to use the console's model. Replies are also written in your Home
   Assistant language, and voice replies are kept to one short, spoken-friendly
   sentence.
