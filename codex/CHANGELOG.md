@@ -28,7 +28,9 @@
 - When Home Assistant refuses the token a chat read uses (a revoked token, or a
   non-administrator's token while the MCP Server requires an administrator), the
   read ends as degraded with the reason `ha-token-refused` and a message that
-  names both causes and how to fix them, instead of the model guessing.
+  names both causes and how to fix them, instead of the model guessing. In a
+  chat answer shown as it is written, the text stops at the refusal and the
+  notice follows it; nothing the model writes after that is shown.
 - The console now follows your custom instructions and the built-in Home
   Assistant context after every restart: they are written into Codex's own
   instructions file (`/data/codex/AGENTS.md`) at each start, so a changed
