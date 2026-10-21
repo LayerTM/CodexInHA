@@ -29,6 +29,12 @@
   non-administrator's token while the MCP Server requires an administrator), the
   read ends as degraded with the reason `ha-token-refused` and a message that
   names both causes and how to fix them, instead of the model guessing.
+- The console now follows your custom instructions and the built-in Home
+  Assistant context after every restart: they are written into Codex's own
+  instructions file (`/data/codex/AGENTS.md`) at each start, so a changed
+  `custom_instructions` and every later update of the built-in text take effect.
+  Text you added to that file yourself is kept as it is. The copy that older
+  versions left in the configuration folder is renamed `AGENTS.md.previous`.
 
 ## 0.1.10
 

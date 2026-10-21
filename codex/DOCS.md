@@ -88,7 +88,7 @@ reconciled on every start.
 | `bypass_permissions` | Start Codex with `--dangerously-bypass-approvals-and-sandbox` (fully autonomous): it stops asking you to approve what it does. The console runs unsandboxed either way — it is your own session, and the boundary around it is the add-on container. This option decides the approval prompts. The prompt API is a different thing entirely: it always runs read-only (see below). |
 | `auto_update` | Update the CLI at every add-on start. Manual `update-codex` always works. |
 | `model` | Model override. Leave empty for the Codex CLI default. |
-| `custom_instructions` | Text appended to the built-in HA context (`AGENTS.md`). |
+| `custom_instructions` | Text appended to the built-in HA context. Applied at every start (see below). |
 | `environment_vars` | Extra env vars, `KEY=VALUE` per entry. |
 | `init_commands` | Shell commands run at startup (install tools, MCP servers). |
 | `plugins` | Extra plugins to install, one per entry. |
@@ -119,7 +119,7 @@ curl -sS -H "Authorization: Bearer $SUPERVISOR_TOKEN" \
   http://supervisor/core/api/states | jq '.[].entity_id'
 ```
 
-The bundled `AGENTS.md` teaches Codex the HA API, config patterns, and safety rules (validate config before restart, prefer reloads, and so on).
+The built-in context teaches Codex the HA API, config patterns, and safety rules (validate config before restart, prefer reloads, and so on). At every start it is written, together with `custom_instructions`, into a marked block of `/data/codex/AGENTS.md`, Codex's own instructions file. Edit `custom_instructions` to change it; anything you write in that file outside the block is kept. The copy older versions placed in `/homeassistant` is renamed `AGENTS.md.previous`.
 
 MCP servers are configured in `config.toml` under `CODEX_HOME` (`/data/codex/config.toml`), skills live under `/data/codex/skills/`, and plugins are managed through the `plugins` and `marketplaces` options.
 
