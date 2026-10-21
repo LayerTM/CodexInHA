@@ -1,5 +1,21 @@
 # Changelog
 
+## 0.2.0
+
+- `POST /api/prompt` accepts `memory` on a read: facts the user chose to keep
+  across conversations, handed to the run as data before the conversation
+  history. The answer carries `memory_change` (`remember`, `forget`) when the
+  message asks to remember or forget something; forgetting is limited to the
+  ids the request sent. `memory` is listed in `request_fields`, the facts are
+  held to `memory_max_bytes` (16 KiB, published in `/api/status`) and a
+  request past it is refused with `memory_too_large`. The add-on keeps no copy
+  of the facts and its audit log records only their number
+  (ha-agent-core 0.9.2 → [0.10.0](https://github.com/LayerTM/ha-agent-core/releases/tag/v0.10.0)).
+- The image installs the distro `bubblewrap` package, so the Codex CLI no
+  longer shows a "could not find bubblewrap on PATH" warning in the console
+  footer at every start. Read-only prompt runs keep refusing writes exactly as
+  before.
+
 ## 0.1.10
 
 - `/api/status` publishes `ha_mcp_auth` (`ok`, `unauthorized`, `unreachable` or
