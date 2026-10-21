@@ -23,6 +23,12 @@
   option stays so stored options still load, but is no longer used, and the
   adapter's write launch mode is removed with it (ha-agent-core 0.10.0, now
   pinned at its final commit).
+- A camera question asked right after the add-on restarts is retried once when
+  its first run stopped during start-up, instead of failing.
+- When Home Assistant refuses the token a chat read uses (a revoked token, or a
+  non-administrator's token while the MCP Server requires an administrator), the
+  read ends as degraded with the reason `ha-token-refused` and a message that
+  names both causes and how to fix them, instead of the model guessing.
 
 ## 0.1.10
 

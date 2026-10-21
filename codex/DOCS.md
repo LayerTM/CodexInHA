@@ -328,7 +328,7 @@ changed without an add-on release.
 | `recovered` | how many succeeded only after a retry (a subset of the successes, never of `degraded`) |
 | `consecutive_ok` | successes since the last failure — proves a recovery by evidence instead of by a timer |
 | `consecutive_failed` | failures since the last success — makes a fresh outage visible before it has diluted the window enough to move the rate |
-| `last_reason` | why the most recent failure failed: a short token such as `model-error`, `timeout` or `auth-expired` (OpenAI no longer accepts the sign-in; see [When the sign-in stops working](#when-the-sign-in-stops-working)), never prompt text or model output |
+| `last_reason` | why the most recent failure failed: a short token such as `model-error`, `timeout` or `auth-expired` (OpenAI no longer accepts the sign-in; see [When the sign-in stops working](#when-the-sign-in-stops-working)), or `ha-token-refused` (Home Assistant refused the token the read used: it was revoked, or it belongs to a non-administrator while the MCP Server requires an administrator), never prompt text or model output |
 | `last_failure_ts` | when that same failure happened |
 | `window_from_ts` / `window_to_ts` | the span the window actually covers |
 | `window_dated` | how many of `recent` those two bounds were measured from |
