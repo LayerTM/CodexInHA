@@ -27,9 +27,9 @@ every request fails until you sign in
 again. The add-on cannot renew it for you.
 
 - **What you see:** requests from the **AI Agent** integration (Assist, automations)
-  fail, and are not retried. Their reason is `auth-expired`; a request that would
-  change something is answered `503 auth_expired` (*the agent is no longer signed
-  in: sign in again*), and `auth` in `/api/status` reads `expired`. In the console,
+  fail, and are not retried. Their reason is `auth-expired`, and `auth` in
+  `/api/status` reads `expired`. A confirmed action does not run a model, so it
+  keeps working while the sign-in is expired. In the console,
   Codex itself reports `unauthorized (401)`. `codex login
   status` still reports *Logged in*, because it only checks that a sign-in is
   stored, not that the server still accepts it; the same holds for `ready` in
@@ -88,7 +88,7 @@ reconciled on every start.
 | `bypass_permissions` | Start Codex with `--dangerously-bypass-approvals-and-sandbox` (fully autonomous): it stops asking you to approve what it does. The console runs unsandboxed either way — it is your own session, and the boundary around it is the add-on container. This option decides the approval prompts. The prompt API is a different thing entirely: it always runs read-only (see below). |
 | `auto_update` | Update the CLI at every add-on start. Manual `update-codex` always works. |
 | `model` | Model override. Leave empty for the Codex CLI default. |
-| `custom_instructions` | Text appended to the built-in HA context (`AGENTS.md`). |
+| `custom_instructions` | Text appended to the built-in HA context. Applied at every start (see below). |
 | `environment_vars` | Extra env vars, `KEY=VALUE` per entry. |
 | `init_commands` | Shell commands run at startup (install tools, MCP servers). |
 | `plugins` | Extra plugins to install, one per entry. |
@@ -119,7 +119,7 @@ curl -sS -H "Authorization: Bearer $SUPERVISOR_TOKEN" \
   http://supervisor/core/api/states | jq '.[].entity_id'
 ```
 
-The bundled `AGENTS.md` teaches Codex the HA API, config patterns, and safety rules (validate config before restart, prefer reloads, and so on).
+The built-in context teaches Codex the HA API, config patterns, and safety rules (validate config before restart, prefer reloads, and so on). At every start it is written, together with `custom_instructions`, into a marked block of `/data/codex/AGENTS.md`, Codex's own instructions file. Edit `custom_instructions` to change it; anything you write in that file outside the block is kept. The copy older versions placed in `/homeassistant` is renamed `AGENTS.md.previous`.
 
 MCP servers are configured in `config.toml` under `CODEX_HOME` (`/data/codex/config.toml`), skills live under `/data/codex/skills/`, and plugins are managed through the `plugins` and `marketplaces` options.
 
@@ -259,9 +259,12 @@ deliberately much more restricted than the interactive console:
 - **Actions require confirmation, and the confirmed action is executed from the
   validated request only.** A read request that would change state returns a
   *proposal* rather than acting; the integration asks you to confirm; only then
-  is a second, tightly-scoped call allowed to perform exactly that action — and
-  that call is driven solely by the validated intent, never by the original
-  free-form message, so untrusted text never reaches the state-changing path.
+  is exactly that action performed — directly through Home Assistant's own
+  tool, with no model involved, driven solely by the validated intent and never
+  by the original free-form message, so untrusted text never reaches the
+  state-changing path. The response lists each action with its outcome; if
+  Home Assistant did not carry out every one, the answer is `502 action_failed`
+  and the integration reports what failed.
 - Rate-limited, concurrency-capped, time-bounded, output-capped, and
   secret-redacted; no transcript of a request is kept once it has answered. A
   Home Assistant call a request makes is written to the audit log (`ha-audit`)
@@ -276,9 +279,9 @@ deliberately much more restricted than the interactive console:
   different model from the interactive console (`chat_model`) — e.g. a quicker,
   cheaper one for snappy Assist replies — and spoken (voice) turns can use an even
   faster model (`chat_model_voice`), since voice answers are short and lower
-  latency matters more there than raw capability. Carrying out a confirmed action
-  (`chat_model_write`) and answering from a camera snapshot (`chat_model_camera`)
-  can each have their own model too. All of these are optional; leave them empty
+  latency matters more there than raw capability. Answering from a camera snapshot
+  (`chat_model_camera`) can have its own model too. `chat_model_write` is no
+  longer used: a confirmed action runs without a model. All of these are optional; leave them empty
   to use the console's model. Replies are also written in your Home
   Assistant language, and voice replies are kept to one short, spoken-friendly
   sentence.
@@ -325,7 +328,7 @@ changed without an add-on release.
 | `recovered` | how many succeeded only after a retry (a subset of the successes, never of `degraded`) |
 | `consecutive_ok` | successes since the last failure — proves a recovery by evidence instead of by a timer |
 | `consecutive_failed` | failures since the last success — makes a fresh outage visible before it has diluted the window enough to move the rate |
-| `last_reason` | why the most recent failure failed: a short token such as `model-error`, `timeout` or `auth-expired` (OpenAI no longer accepts the sign-in; see [When the sign-in stops working](#when-the-sign-in-stops-working)), never prompt text or model output |
+| `last_reason` | why the most recent failure failed: a short token such as `model-error`, `timeout` or `auth-expired` (OpenAI no longer accepts the sign-in; see [When the sign-in stops working](#when-the-sign-in-stops-working)), or `ha-token-refused` (Home Assistant refused the token the read used: it was revoked, or it belongs to a non-administrator while the MCP Server requires an administrator), never prompt text or model output |
 | `last_failure_ts` | when that same failure happened |
 | `window_from_ts` / `window_to_ts` | the span the window actually covers |
 | `window_dated` | how many of `recent` those two bounds were measured from |

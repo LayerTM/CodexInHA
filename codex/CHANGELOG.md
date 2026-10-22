@@ -1,5 +1,43 @@
 # Changelog
 
+## 0.2.0
+
+- `POST /api/prompt` accepts `memory` on a read: facts the user chose to keep
+  across conversations, handed to the run as data before the conversation
+  history. The answer carries `memory_change` (`remember`, `forget`) when the
+  message asks to remember or forget something; forgetting is limited to the
+  ids the request sent. `memory` is listed in `request_fields`, the facts are
+  held to `memory_max_bytes` (16 KiB, published in `/api/status`) and a
+  request past it is refused with `memory_too_large`. The add-on keeps no copy
+  of the facts and its audit log records only their number
+  (ha-agent-core 0.9.2 → [0.10.0](https://github.com/LayerTM/ha-agent-core/releases/tag/v0.10.0)).
+- The image installs the distro `bubblewrap` package, so the Codex CLI no
+  longer shows a "could not find bubblewrap on PATH" warning in the console
+  footer at every start. Read-only prompt runs keep refusing writes exactly as
+  before.
+- A confirmed action no longer runs a model: the core calls Home Assistant's own
+  tool for each action and reports every outcome in `actions`. If any action
+  fails the answer is `502 action_failed` with the same list, so the
+  integration never reports "Done" for a change that did not happen. A confirmed
+  action also no longer depends on the sign-in being valid. The `chat_model_write`
+  option stays so stored options still load, but is no longer used, and the
+  adapter's write launch mode is removed with it (ha-agent-core 0.10.0, now
+  pinned at its final commit).
+- A camera question asked right after the add-on restarts is retried once when
+  its first run stopped during start-up, instead of failing.
+- When Home Assistant refuses the token a chat read uses (a revoked token, or a
+  non-administrator's token while the MCP Server requires an administrator), the
+  read ends as degraded with the reason `ha-token-refused` and a message that
+  names both causes and how to fix them, instead of the model guessing. In a
+  chat answer shown as it is written, the text stops at the refusal and the
+  notice follows it; nothing the model writes after that is shown.
+- The console now follows your custom instructions and the built-in Home
+  Assistant context after every restart: they are written into Codex's own
+  instructions file (`/data/codex/AGENTS.md`) at each start, so a changed
+  `custom_instructions` and every later update of the built-in text take effect.
+  Text you added to that file yourself is kept as it is. The copy that older
+  versions left in the configuration folder is renamed `AGENTS.md.previous`.
+
 ## 0.1.10
 
 - `/api/status` publishes `ha_mcp_auth` (`ok`, `unauthorized`, `unreachable` or

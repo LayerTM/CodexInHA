@@ -270,10 +270,8 @@ configuration:
   chat_model_write:
     name: Action Model (AI Agent integration)
     description: >-
-      Optional model for carrying out an action you have already confirmed in the
-      chat. That step only calls the exact Home Assistant action it was given, so a
-      faster, cheaper model is usually enough. Leave empty to use the Chat Model
-      above. A voice turn keeps the Voice Chat Model when one is set.
+      No longer used: a confirmed action is carried out directly, without a
+      model. Leave empty.
   chat_model_camera:
     name: Camera Model (AI Agent integration)
     description: >-

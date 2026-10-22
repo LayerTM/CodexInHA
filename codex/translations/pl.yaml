@@ -277,10 +277,8 @@ configuration:
   chat_model_write:
     name: Model akcji (integracja AI Agent)
     description: >-
-      Opcjonalny model do wykonania akcji, którą już potwierdziłeś w czacie. Ten
-      krok wywołuje tylko podaną akcję Home Assistant, więc zwykle wystarczy
-      szybszy, tańszy model. Zostaw puste, aby użyć „Modelu czatu” powyżej. Tura
-      głosowa zostaje przy „Modelu głosowym”, jeśli jest ustawiony.
+      Już nieużywany: potwierdzona akcja jest wykonywana bezpośrednio, bez
+      modelu. Zostaw puste.
   chat_model_camera:
     name: Model kamer (integracja AI Agent)
     description: >-
