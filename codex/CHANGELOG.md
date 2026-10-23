@@ -3,7 +3,7 @@
 ## 0.2.1
 
 - The image is built on Debian base 9.5.1 (curl, xz-utils and ca-certificates
-  security updates), Node.js 26.12.1, Codex CLI 0.163.0, Home Assistant CLI
+  security updates), Node.js 26.12.1, Codex CLI 0.164.0, Home Assistant CLI
   5.6.0 and Pillow 13.0.0.
 - A pin that falls behind its upstream now fails the build of the commit that
   would release it, so a release cannot ship a stale base image or tool.
