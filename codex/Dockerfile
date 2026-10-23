@@ -49,11 +49,11 @@ RUN apt-get update \
 # differs from what was seen at the bump — however it came to differ — stops the
 # build instead of being installed.
 # upstream: nodejs lts-ready
-ARG NODE_VERSION=26.12.0
+ARG NODE_VERSION=26.12.1
 # upstream: nodejs-sha256 linux-x64
-ARG NODE_SHA256_AMD64=fd47865ecd6391ebb431fc815e01b9135bf83ded5cf373247e9331e196b7aded
+ARG NODE_SHA256_AMD64=6170b2d474e1c626f43cff3adc118df9fe3b573258a4fc3d850c8dbc6b079bbd
 # upstream: nodejs-sha256 linux-arm64
-ARG NODE_SHA256_ARM64=fd6cc729fa4448c2ac27c3fca5606019ced63c65a15c152c8df03e0cbce7f4c5
+ARG NODE_SHA256_ARM64=42aa04922591ee5d4dbc7740d452621acf28508239daa512f5ee8c47ee224fdb
 RUN arch="$(dpkg --print-architecture)" \
     && case "${arch}" in \
          amd64) node_arch="x64";   expected="${NODE_SHA256_AMD64}" ;; \
@@ -104,7 +104,7 @@ SHELL ["/bin/bash", "-o", "pipefail", "-c"]
 # upstream change of the package's shape fails the build here instead of at a
 # user's next start.
 # upstream: npm @openai/codex
-ARG CODEX_VERSION=0.162.1
+ARG CODEX_VERSION=0.163.0
 ENV NPM_CONFIG_PREFIX=/opt/codex-npm
 RUN npm install --global --no-audit --no-fund "@openai/codex@${CODEX_VERSION}" \
     && npm cache clean --force \
@@ -134,7 +134,7 @@ ENV PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1
 
 # --- Home Assistant command-line tools (static, architecture-aware) ---
 # upstream: github-release home-assistant/cli
-ARG HA_CLI_VERSION=5.5.0
+ARG HA_CLI_VERSION=5.6.0
 # upstream: github-release mikefarah/yq
 ARG YQ_VERSION=4.54.1
 RUN arch="$(dpkg --print-architecture)" \
@@ -157,7 +157,7 @@ ARG HASS_CLI_VERSION=1.0.0
 # upstream: pypi hass-mcp
 ARG HASS_MCP_VERSION=0.6.0
 # upstream: pypi Pillow
-ARG PILLOW_VERSION=12.3.0
+ARG PILLOW_VERSION=13.0.0
 RUN pip install --no-cache-dir --break-system-packages \
         "homeassistant-cli==${HASS_CLI_VERSION}" \
         "hass-mcp==${HASS_MCP_VERSION}" \
