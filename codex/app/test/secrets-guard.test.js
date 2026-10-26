@@ -409,3 +409,13 @@ test('secrets-guard-notice: the text names the drop and its reason', () => {
   const quiet = spawnSync('bash', [notice], { encoding: 'utf8', env: { ...process.env, PROTECT_SECRETS_DROPPED: '' } });
   assert.strictEqual(quiet.status, 0);
 });
+
+test('the app does not use the host network (secrets-guard tells its own profile by the hostname)', () => {
+  // secrets-guard recognises the app's own AppArmor profile because the
+  // Supervisor names the container after the slug (local_codex -> local-codex).
+  // With host_network the container takes the Home Assistant host's name, every
+  // start would run cli-only, and the protection would be quietly weaker.
+  const config = fs.readFileSync(path.join(ADDON, 'config.yaml'), 'utf8');
+  assert.doesNotMatch(config, /^host_network\s*:/m,
+    'config.yaml sets host_network: secrets-guard would no longer recognise the app\'s own AppArmor profile');
+});
