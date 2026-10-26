@@ -38,6 +38,91 @@ again. The app cannot renew it for you.
   sign-in, so the next one already runs with the new one.
 - **Avoid it:** an **API key** needs no sign-in renewal.
 
+## Security and privacy
+
+Codex can read and change your Home Assistant configuration and run shell commands, so know what it
+can reach before you give it a task.
+
+### What the app can reach
+
+| Folder | Access |
+|---|---|
+| `/homeassistant` (your configuration) | read and write, except the protected files below |
+| `/config` (this app's own configuration folder) | read and write |
+| `/share` | read and write |
+| `/media` | read and write |
+| `/ssl` | read-only; with `protect_secrets` on, the private keys cannot be read |
+| `/backup` | read-only; with `protect_secrets` on, the archives cannot be opened |
+
+Beyond the folders, the app uses the Supervisor API with the `manager` role (it can create backups
+and manage other apps) and the Home Assistant API.
+
+### Protected files
+
+With `protect_secrets` on (the default), Codex cannot read or change:
+
+- `secrets.yaml`, and any `secrets.yaml` below the configuration folder (ESPHome keeps one)
+- `.storage/auth` — users' refresh tokens, long-lived access tokens and signing keys
+- `.storage/auth_provider.homeassistant` — password hashes
+- `.storage/core.config_entries` — every integration's credentials
+- `.storage/application_credentials` — OAuth client secrets
+- `.cloud/` — the Home Assistant Cloud sign-in
+- TLS private keys in `/ssl` (`*.key`, `privkey*.pem`); certificates stay readable
+- the archives in `/backup`, which carry a copy of all of the above (backups are still made, listed and
+  restored through the Supervisor)
+
+Two things enforce it. The app's AppArmor profile puts the whole console (every tab), the prompt
+API and everything Codex runs into a mode where the kernel refuses these files to any program,
+however it opens them. And Codex checks each command before running it, so a request that names
+one of these files is refused with a reason instead of an error. Codex can still use a secret
+without seeing it: write `!secret name` in the configuration and add the value to `secrets.yaml`
+yourself. The app's log says at start-up which protection is on.
+
+On a host that runs apps without AppArmor (Home Assistant OS always has it), the kernel half is not
+available: only Codex's check of each command is on, and the start-up log warns about it. If AppArmor
+is on but the app runs without its own profile (a damaged install), the app does not start while
+the option is on; reinstalling it, or turning the option off, starts it again. That check
+reads what a command names, so a command that reaches a protected file without naming it (a search
+over the whole folder, a script) is not stopped there.
+
+### What the protection does not cover
+
+It keeps the files away from Codex. It does not make Codex unable to reach a credential in every
+possible way:
+
+- **Backups through the Supervisor.** The app may create backups, and the Supervisor API would hand one
+  out for download; a backup contains these files.
+- **The next start.** Codex can change the app's options through the Supervisor, including turning
+  `protect_secrets` off, and the change applies when the app restarts. That cannot be prevented
+  without taking the Supervisor away from it, so it is made visible: when the app starts with the
+  option off after a start with it on, Home Assistant shows the notification "Secrets protection was
+  turned off" and the app's log says so. Codex cannot change the files that do this from inside the
+  app; as root it could still replace system programs the app runs at start-up, which would take a
+  deliberate effort, not an accident. It cannot change them, or the
+  files that set up the protection, from inside the app — but anything else it changes in the app
+  (an `init_commands` entry, a program it installs) runs at the next start like everything else, with
+  the protection applied as the options say. What decides the protection at start-up (the
+  app's options file, its start scripts and the static shell that runs them) is out of its reach.
+- **Home Assistant itself.** Codex writes your configuration and automations; one written to expose a
+  value would make Home Assistant reveal it.
+- **Other places.** A credential copied into another file (a script, an automation, a note) is not
+  protected.
+
+Treat it as protection against Codex opening your credentials by accident or because a task led it
+there — not as a wall against an agent set on getting them.
+
+### What leaves your home
+
+Whatever Codex reads or runs in a session — a file, a command's output, an entity state — becomes
+part of the conversation and is sent to OpenAI, to answer you. Nothing is sent through any other
+server.
+
+### The Home Assistant token
+
+`ha_token` is optional. When set, Codex calls the Home Assistant API with that user's rights, so it
+can do whatever that user can. Leave it empty if you do not need dashboard screenshots, `hass-cli`
+or `hass-mcp`.
+
 ## The console
 
 - **Tabs** — ● Codex plus any number of shell tabs (+). Exiting Codex shows a restart menu; the session never dies with it.
@@ -84,7 +169,8 @@ reconciled on every start.
 |---|---|
 | `api_key` | API-key authentication (see above). Stored encrypted by the Supervisor. |
 | `ha_token` | A Home Assistant Long-Lived Access Token (Profile → Security). Enables dashboard screenshots, `hass-cli`, `hass-mcp` — including its tools for reading **and editing** Lovelace dashboards — and WebSocket/REST access as you. Persists across updates. Optional. |
-| `bypass_permissions` | Start Codex with `--dangerously-bypass-approvals-and-sandbox` (fully autonomous): it stops asking you to approve what it does. The console runs unsandboxed either way — it is your own session, and the boundary around it is the app container. This option decides the approval prompts. The prompt API is a different thing entirely: it always runs read-only (see below). |
+| `bypass_permissions` | Start Codex with `--dangerously-bypass-approvals-and-sandbox` (fully autonomous): it stops asking you to approve what it does. The console runs without the CLI's own sandbox either way — it is your own session, and the boundary around it is the app container (and `protect_secrets`). This option decides the approval prompts. The prompt API is a different thing entirely: it always runs read-only (see below). |
+| `protect_secrets` | On by default. Codex can neither read nor change the files where Home Assistant keeps credentials. See [Security and privacy](#security-and-privacy) for the list and its limits. Takes effect at the next app start. |
 | `auto_update` | Update the CLI at every app start. Manual `update-codex` always works. |
 | `model` | Model override. Leave empty for the Codex CLI default. |
 | `custom_instructions` | Text appended to the built-in HA context. Applied at every start (see below). |

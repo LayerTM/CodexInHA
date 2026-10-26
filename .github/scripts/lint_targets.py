@@ -31,6 +31,7 @@ import sys
 INTERPRETERS = {
     "sh": "shell",
     "bash": "shell",
+    "bash-static": "shell",
     "bashio": "shell",
     "node": "node",
     "python": "python",

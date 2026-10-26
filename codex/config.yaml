@@ -1,5 +1,5 @@
 name: "Codex"
-version: "0.2.1"
+version: "0.3.0"
 slug: codex
 description: "Codex AI assistant embedded in Home Assistant — web console with tabs, clipboard, file attachments, browser testing, and a bundled HA skill pack"
 url: "https://github.com/LayerTM/CodexInHA"
@@ -47,6 +47,7 @@ options:
   api_key: ""
   ha_token: ""
   bypass_permissions: false
+  protect_secrets: true
   auto_update: true
   model: ""
   custom_instructions: ""
@@ -93,6 +94,7 @@ schema:
   api_key: "password"
   ha_token: "password"
   bypass_permissions: bool
+  protect_secrets: bool
   auto_update: bool
   model: "str?"
   custom_instructions: "str?"

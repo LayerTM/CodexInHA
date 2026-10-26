@@ -1,5 +1,25 @@
 # Changelog
 
+## 0.3.0
+
+- New option `protect_secrets`, on by default: Codex can no longer read or
+  change the files where Home Assistant keeps credentials — `secrets.yaml`,
+  `.storage/auth`, `.storage/auth_provider.homeassistant`,
+  `.storage/core.config_entries`, `.storage/application_credentials`,
+  `.cloud/`, the TLS private keys in `/ssl` — nor open the archives in
+  `/backup`. The app now ships its own AppArmor profile: the console, every
+  tab, the prompt API and everything Codex runs are confined so that the
+  kernel refuses these files, and Codex checks each command first so it gets
+  a clear reason instead of an error.
+  The documentation's new "Security and privacy" section lists what is
+  protected and what is not. On a host without AppArmor only the command
+  check is on, and the start-up log says so. Turn the option off to give
+  Codex the files; when the app starts with it off after it was on, Home
+  Assistant shows "Secrets protection was turned off".
+- The `ha-debug` skill lists integrations through the Home Assistant API
+  instead of reading `.storage/core.config_entries`.
+- hass-mcp 0.6.1.
+
 ## 0.2.1
 
 - The image is built on Debian base 9.5.1 (curl, xz-utils and ca-certificates
