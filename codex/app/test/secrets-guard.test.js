@@ -292,9 +292,12 @@ test('TLS keys are protected, certificates are not', () => {
 test('the guarded mode cannot rewrite what decides its next start', () => {
   const text = fs.readFileSync(APPARMOR, 'utf8');
   const child = text.slice(text.indexOf('profile guarded'));
+  // Folder nodes only: a rule over a folder's contents would stop the agent
+  // from writing ordinary files there (a dashboard in .storage).
+  assert.doesNotMatch(child, /deny \/homeassistant\/\.storage\/\*\*/);
   for (const p of ['/etc/s6-overlay{,/**}', '/run/service{,/**}',
     '/usr/share/agent-core{,/**}', '/etc/codex{,/**}', '/usr/bin/bash-static', '/command{,/**}', '/package{,/**}',
-    '/usr/local/bin/{secrets-guard*,ha-notify,addon-run}', '/usr/local/lib/*.sh',
+    '/usr/local/bin/{secrets-guard*,ha-notify,addon-run}', '/usr/local/lib/*.sh', '/{homeassistant,homeassistant/.storage,homeassistant/.cloud,ssl,backup}{,/}',
     '/{bin,data,etc,run,usr,usr/bin,usr/local,usr/local/bin,usr/local/lib}{,/}', '/usr/lib/*/{libc,libnss_*}.so*']) {
     assert.ok(child.includes(`deny ${p} wl,`), `${p} is writable from the guarded mode`);
   }

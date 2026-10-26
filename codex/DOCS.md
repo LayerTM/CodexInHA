@@ -105,6 +105,9 @@ possible way:
   app's options file, its start scripts and the static shell that runs them) is out of its reach.
 - **Home Assistant itself.** Codex writes your configuration and automations; one written to expose a
   value would make Home Assistant reveal it.
+- **Moved folders.** The protected paths are names. The folders that hold them (the configuration
+  folder, its `.storage` and `.cloud`, `/ssl`, `/backup`) cannot be renamed, but another folder that
+  holds a `secrets.yaml` (ESPHome's) could be renamed on purpose to reach the file under a new name.
 - **Other places.** A credential copied into another file (a script, an automation, a note) is not
   protected.
 

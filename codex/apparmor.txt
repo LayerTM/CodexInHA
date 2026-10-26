@@ -93,6 +93,10 @@ profile codex flags=(attach_disconnected,mediate_deleted) {
     deny /usr/share/agent-core{,/**} wl,
     deny /etc/codex{,/**} wl,
 
+    # The folders that hold protected files cannot be renamed away from
+    # their paths (the folder itself only: files inside stay writable).
+    deny /{homeassistant,homeassistant/.storage,homeassistant/.cloud,ssl,backup}{,/} wl,
+
     # BEGIN protected paths
     deny /homeassistant/secrets.yaml rwklmx,
     deny /homeassistant/**/secrets.yaml rwklmx,
