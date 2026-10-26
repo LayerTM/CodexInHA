@@ -295,7 +295,7 @@ test('the guarded mode cannot rewrite what decides its next start', () => {
   for (const p of ['/etc/s6-overlay{,/**}', '/run/service{,/**}',
     '/usr/share/agent-core{,/**}', '/etc/codex{,/**}', '/usr/bin/bash-static', '/command{,/**}', '/package{,/**}',
     '/usr/local/bin/{secrets-guard*,ha-notify,addon-run}', '/usr/local/lib/*.sh',
-    '/{bin,data,etc,run,usr,usr/bin,usr/local,usr/local/bin}{,/}', '/usr/lib/*/{libc,libnss_*}.so*']) {
+    '/{bin,data,etc,run,usr,usr/bin,usr/local,usr/local/bin,usr/local/lib}{,/}', '/usr/lib/*/{libc,libnss_*}.so*']) {
     assert.ok(child.includes(`deny ${p} wl,`), `${p} is writable from the guarded mode`);
   }
   const guard = fs.readFileSync(GUARD, 'utf8');

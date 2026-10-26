@@ -82,14 +82,14 @@ profile codex flags=(attach_disconnected,mediate_deleted) {
     deny /usr/bin/bash-static wl,
     deny /usr/local/bin/{secrets-guard*,ha-notify,addon-run} wl,
     deny /usr/local/lib/*.sh wl,
-    deny /{bin,data,etc,run,usr,usr/bin,usr/local,usr/local/bin}{,/} wl,
+    deny /{bin,data,etc,run,usr,usr/bin,usr/local,usr/local/bin,usr/local/lib}{,/} wl,
     # What a static glibc program can still load at run time.
     deny /etc/{nsswitch.conf,ld.so.preload,ld.so.conf} wl,
     deny /etc/ld.so.conf.d/** wl,
     deny /usr/lib{,64}/**ld-linux*.so* wl,
     deny /usr/lib/*/{libc,libnss_*}.so* wl,
     deny /usr/lib/*/gconv/** wl,
-    # Layer 1's own files.
+    # The command check's own files.
     deny /usr/share/agent-core{,/**} wl,
     deny /etc/codex{,/**} wl,
 
