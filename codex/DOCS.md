@@ -78,6 +78,10 @@ one of these files is refused with a reason instead of an error. Codex can still
 without seeing it: write `!secret name` in the configuration and add the value to `secrets.yaml`
 yourself. The app's log says at start-up which protection is on.
 
+If your configuration folder is a git repository, list the protected files in its `.gitignore`.
+Git cannot read them in the protected mode, so `git add -A` stops with "Permission denied" while
+any of them is not ignored.
+
 On a host that runs apps without AppArmor (Home Assistant OS always has it), or when the app does not
 run under its own AppArmor profile, the kernel half is not available: only Codex's check of each
 command is on, and the start-up log warns about it. If the app runs
@@ -98,20 +102,22 @@ possible way:
   without taking the Supervisor away from it, so it is made visible: whenever the app starts with
   less protection than at its previous start — the option turned off, or the kernel half lost —
   Home Assistant shows a notification ("Secrets protection was turned off" or "… was weakened",
-  with the reason) and the app's log says so. Codex cannot change the files that do this from inside the
-  app; as root it could still replace system programs the app runs at start-up, which would take a
-  deliberate effort, not an accident. It cannot change them, or the
-  files that set up the protection, from inside the app — but anything else it changes in the app
-  (an `init_commands` entry, a program it installs) runs at the next start like everything else, with
-  the protection applied as the options say. What decides the protection at start-up (the
-  app's options file, its start scripts and the static shell that runs them) is out of its reach.
+  with the reason) and the app's log says so. What decides the protection at start-up (the app's
+  options file, its start scripts and the static shell that runs them) is out of Codex's reach.
+  The everyday programs the notification uses are not, but every restart recreates the app's
+  container, so a program Codex changed is gone by the time that start runs; what Codex keeps across
+  restarts (an `init_commands` entry, a program it installs in `/data`) runs at the next start
+  like everything else, with the protection applied as the options say.
+- **Other apps' options.** The app manages Home Assistant through the Supervisor, and the Supervisor
+  API hands it the options of other apps, which can hold their passwords and tokens.
 - **Home Assistant itself.** Codex writes your configuration and automations; one written to expose a
   value would make Home Assistant reveal it.
 - **Moved folders.** The protected paths are names. The folders that hold them (the configuration
   folder, its `.storage` and `.cloud`, `/ssl`, `/backup`) cannot be renamed, but another folder that
   holds a `secrets.yaml` (ESPHome's) could be renamed on purpose to reach the file under a new name.
 - **Other places.** A credential copied into another file (a script, an automation, a note) is not
-  protected.
+  protected, and neither is an older copy kept in history — a git repository in the configuration
+  folder that once committed `secrets.yaml` still holds it.
 
 Treat it as protection against Codex opening your credentials by accident or because a task led it
 there — not as a wall against an agent set on getting them.
