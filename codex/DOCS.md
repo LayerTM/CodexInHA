@@ -1,30 +1,29 @@
-# Codex — Home Assistant Add-on
+# Codex — Home Assistant App
 
-Runs the full [Codex CLI](https://github.com/openai/codex) inside Home Assistant, presented as a web console you open from the add-on page — or from the sidebar, once you put it there (step 3 below). Codex has direct access to your HA configuration and APIs: it can create automations, debug integrations, run shell commands, and manage your setup through conversation.
+Runs the full [Codex CLI](https://github.com/openai/codex) inside Home Assistant, presented as a web console you open from the app page — or from the sidebar, once you put it there (step 3 below). Codex has direct access to your HA configuration and APIs: it can create automations, debug integrations, run shell commands, and manage your setup through conversation.
 
 ## Installation
 
-1. **Settings → Add-ons → Add-on Store** → ⋮ → **Repositories** → add
-   `https://github.com/LayerTM/CodexInHA`
-2. Install **Codex** and start it.
-3. Open it with **Open Web UI** on the add-on page. For a **Codex** entry in the
-   sidebar, turn on **Show in sidebar** there: Home Assistant leaves that switch
-   off for every add-on it installs, whatever the add-on asks for, so the panel
-   appears only once you turn it on.
+1. Go to **Settings → Apps → Install app**, open the **⋮** menu (top right) → **Repositories**,
+   paste `https://github.com/LayerTM/CodexInHA` and press **Add**.
+2. Open **Codex** in the App store, then **Install** and **Start**.
+3. Click **Open Web UI**. For a **Codex** entry in the sidebar, turn on **Show in sidebar** on the
+   app's **Info** tab: Home Assistant leaves that switch off for every app it installs, whatever
+   the app asks for, so the panel appears only once you turn it on.
 
 ## Authentication (pick one)
 
 | Method | How |
 |---|---|
 | **ChatGPT plan (recommended)** | Leave **API Key** empty, open the console, run `codex login` and follow the login URL. The sign-in is stored in `/data/codex` and survives restarts and updates — but OpenAI's server can stop accepting it, for example when it has expired or was revoked. See [When the sign-in stops working](#when-the-sign-in-stops-working). |
-| **API key** | Paste a key from [platform.openai.com](https://platform.openai.com) into **API Key**. Pay-per-use. It needs no renewal from a sign-in, so it suits an add-on that is asked rarely and must answer unattended. Remote control needs the ChatGPT sign-in. |
+| **API key** | Paste a key from [platform.openai.com](https://platform.openai.com) into **API Key**. Pay-per-use. It needs no renewal from a sign-in, so it suits an app that is asked rarely and must answer unattended. Remote control needs the ChatGPT sign-in. |
 
 ### When the sign-in stops working
 
 Codex renews a ChatGPT sign-in by itself while it is in use. If OpenAI's server
 refuses the renewal — for example because the sign-in expired or was revoked —
 every request fails until you sign in
-again. The add-on cannot renew it for you.
+again. The app cannot renew it for you.
 
 - **What you see:** requests from the **AI Agent** integration (Assist, automations)
   fail, and are not retried. Their reason is `auth-expired`, and `auth` in
@@ -39,6 +38,46 @@ again. The add-on cannot renew it for you.
   sign-in, so the next one already runs with the new one.
 - **Avoid it:** an **API key** needs no sign-in renewal.
 
+## Security and privacy
+
+Codex can read and change your Home Assistant configuration and run shell commands, so know what it
+can reach before you give it a task.
+
+### What the app can reach
+
+| Folder | Access |
+|---|---|
+| `/homeassistant` (your configuration, including `secrets.yaml`) | read and write |
+| `/config` (this app's own configuration folder) | read and write |
+| `/share` | read and write |
+| `/media` | read and write |
+| `/ssl` | read-only |
+| `/backup` | read-only |
+
+Beyond the folders, the app uses the Supervisor API with the `manager` role (it can create backups
+and manage other apps) and the Home Assistant API. The console is your own session and runs without
+the CLI's file sandbox; the boundary around it is the app's container.
+
+### What leaves your home
+
+Whatever Codex reads or runs in a session — a file, a command's output, an entity state — becomes
+part of the conversation and is sent to OpenAI, to answer you. Nothing is sent through any other
+server. If a file holds something you do not want OpenAI to see, do not ask Codex to open it.
+
+### Approvals
+
+- **`bypass_permissions` off (default):** the console starts Codex with `--sandbox danger-full-access`
+  and the approval prompts stay on. The app does not promise a prompt before every file read.
+- **`bypass_permissions` on:** Codex starts with `--dangerously-bypass-approvals-and-sandbox` and
+  asks for nothing.
+- The prompt API is separate: it always runs read-only (see below).
+
+### The Home Assistant token
+
+`ha_token` is optional. When set, Codex calls the Home Assistant API with that user's rights, so it
+can do whatever that user can. Leave it empty if you do not need dashboard screenshots, `hass-cli`
+or `hass-mcp`.
+
 ## The console
 
 - **Tabs** — ● Codex plus any number of shell tabs (+). Exiting Codex shows a restart menu; the session never dies with it.
@@ -49,7 +88,7 @@ again. The add-on cannot renew it for you.
 - **Quick prompts** — the 💡 button drops down a few ready-made prompts (*What changed today?*, *Check my dashboard*, *Check config health*, *Offline / low battery?*, *Recent log errors*). Tapping one inserts the prompt into the console for you to review and send with Enter — nothing runs automatically. Add your own with the `quick_prompts` option — they appear under *Your prompts* in the same menu.
 - **Alerts & notifications** — the 🔔 button shows whether proactive alerts are on, any currently-active alerts (leak / low battery / door open at night, with criticals in red), and the messages in your Home Assistant notification bell. Read-only. A badge on the 🔔 shows how many alerts are currently active at a glance (red if any is critical), so you don't have to open the menu to notice.
 - **Attach files & images** — drag & drop anywhere, paste an image from the clipboard, or use 📎 (opens camera/gallery on phones). The file is saved under `/data/uploads` and its path is typed into the prompt.
-- **Update Codex** — ⬆ button, or `update-codex` in a shell tab (`update-codex 0.155.0` installs a specific version). Only the Codex session restarts; the add-on keeps running. With **Auto-Update** enabled the CLI also updates at every add-on start.
+- **Update Codex** — ⬆ button, or `update-codex` in a shell tab (`update-codex 0.155.0` installs a specific version). Only the Codex session restarts; the app keeps running. With **Auto-Update** enabled the CLI also updates at every app start.
 - **Remote control** — with the **Remote Control** option on, an extra tab runs Codex's own remote-control command, so the official ChatGPT mobile app / chatgpt.com can drive this machine's session. Requires a full `codex login` — an API key is not enough.
 - **Mobile** — a key bar (Esc, Tab, arrows, ^C…) appears on touch devices; ⛶ hides the HA chrome for a full-screen terminal.
 
@@ -64,7 +103,7 @@ per-session setup:
 | `ha-check` | Validate the HA configuration (run before any restart) |
 | `ha-state [entity\|domain.]` | Query entity states, e.g. `ha-state light.kitchen`, `ha-state light.` |
 | `ha-shot <path> [out.png] [WxH]` | Screenshot a Lovelace dashboard to PNG, e.g. `ha-shot /lovelace/0 /tmp/d.png 1280x800` (needs **HA Token**) |
-| `ha-usage [days]` | Summarize Codex token usage (today / N days / all-time, per model) from the console's session history. This add-on reports no cost, so the figures are token counts, never a dollar amount |
+| `ha-usage [days]` | Summarize Codex token usage (today / N days / all-time, per model) from the console's session history. This app reports no cost, so the figures are token counts, never a dollar amount |
 | `ha-audit [N]` | Show what Codex has changed: service calls, edits under your config, Core restarts, safety backups, and every change made through a connected tool server (dashboard edits included). Reads are not recorded; a preview is marked `(dry-run)` and a call that failed is marked `(failed)` |
 | `yq` | Edit YAML config files |
 | `hass-cli` | Entity/service queries (needs **HA Token**) |
@@ -74,7 +113,7 @@ A **Home Assistant skill pack** is bundled: `ha-config-edit`, `ha-automation`,
 `ha-debug`, `ha-entity`, `ha-screenshot`, `ha-backup`, `ha-addon`, `ha-onboard`,
 `ha-energy`, `ha-recorder-query`, `ha-lovelace-card`, `ha-blueprint`,
 `ha-voice`. Everything installed lives in `/data/codex` and **persists across
-add-on updates**.
+app updates**.
 
 Add your own with the `plugins`, `marketplaces`, and `skills_git` options —
 reconciled on every start.
@@ -85,8 +124,8 @@ reconciled on every start.
 |---|---|
 | `api_key` | API-key authentication (see above). Stored encrypted by the Supervisor. |
 | `ha_token` | A Home Assistant Long-Lived Access Token (Profile → Security). Enables dashboard screenshots, `hass-cli`, `hass-mcp` — including its tools for reading **and editing** Lovelace dashboards — and WebSocket/REST access as you. Persists across updates. Optional. |
-| `bypass_permissions` | Start Codex with `--dangerously-bypass-approvals-and-sandbox` (fully autonomous): it stops asking you to approve what it does. The console runs unsandboxed either way — it is your own session, and the boundary around it is the add-on container. This option decides the approval prompts. The prompt API is a different thing entirely: it always runs read-only (see below). |
-| `auto_update` | Update the CLI at every add-on start. Manual `update-codex` always works. |
+| `bypass_permissions` | Start Codex with `--dangerously-bypass-approvals-and-sandbox` (fully autonomous): it stops asking you to approve what it does. The console runs unsandboxed either way — it is your own session, and the boundary around it is the app container. This option decides the approval prompts. The prompt API is a different thing entirely: it always runs read-only (see below). |
+| `auto_update` | Update the CLI at every app start. Manual `update-codex` always works. |
 | `model` | Model override. Leave empty for the Codex CLI default. |
 | `custom_instructions` | Text appended to the built-in HA context. Applied at every start (see below). |
 | `environment_vars` | Extra env vars, `KEY=VALUE` per entry. |
@@ -103,10 +142,10 @@ reconciled on every start.
 | `monitoring_interval_hours` | Opt-in proactive monitoring: every N hours Codex reviews the error log and config and notifies you only if it finds something (0 = off). |
 | `proactive_alerts` + `alert_*` | Opt-in **deterministic** anomaly alerts (no Codex, no plan usage): notify on a water leak, door/window open at night, low battery, temperature out of band, high CO2, humidity out of band, or a watched device/internet gateway going offline. See *Proactive alerts* below. |
 | `prompt_api` | Serve the secure Prompt API for the companion **AI Agent** (`claude_ha`) integration (on by default). See *The companion integration* below. |
-| `api_token` | Optional fixed bearer token for the Prompt API. Leave empty — the add-on generates one and hands it to the integration via discovery. |
+| `api_token` | Optional fixed bearer token for the Prompt API. Leave empty — the app generates one and hands it to the integration via discovery. |
 | `prompt_ha_token` | Optional HA token used only by Prompt-API sessions to read state through the MCP Server integration. Best practice: a dedicated non-admin user's token. Falls back to `ha_token`. |
 
-This add-on reports no cost for any run (the CLI does not report a dollar
+This app reports no cost for any run (the CLI does not report a dollar
 figure), so there is no daily chat budget option and `/api/status` publishes
 no `budget`.
 
@@ -146,7 +185,7 @@ It watches for:
 still-open door won't re-notify every cycle — the active anomalies are remembered
 in `/data/alerts-state.json` and dropped when they clear, so the same entity can
 alert again the next time the problem reappears. Turning `proactive_alerts` off clears this
-memory when the add-on next starts, so anything still wrong when you switch alerts
+memory when the app next starts, so anything still wrong when you switch alerts
 back on is notified again.
 
 **Quiet hours** (`alert_quiet_hours`, e.g. `22:00-07:00`, empty = off): during
@@ -161,7 +200,7 @@ notification bell. Activity is logged to `/data/alerts.log`.
 
 ### Adding, changing, or removing an alert
 
-Every alert is just an option you set in the add-on's **Configuration** tab — no
+Every alert is just an option you set in the app's **Configuration** tab — no
 automations and no code. Because the whole feature is deterministic (fixed bash +
 jq rules, no model), it costs **nothing in plan usage** and has **no
 prompt-injection surface**. First turn the feature on with `proactive_alerts:
@@ -194,10 +233,10 @@ Any listed entity that reports `unavailable` or `unknown` — or, for a
 camera) — avoid a person's phone tracker, or you'll get an *Offline* alert every
 time they leave home. **To remove** a watched device, delete its line (keep the gateway if you still want
 internet-down detection, or set `alert_offline: false` to switch the whole check
-off). An empty list — which is how the add-on starts — leaves `alert_offline: true`
+off). An empty list — which is how the app starts — leaves `alert_offline: true`
 watching **nothing**, so the check costs you nothing until you fill it in.
 Changes take effect after you save the options
-and restart the add-on — the alerts loop reads its options when it starts.
+and restart the app — the alerts loop reads its options when it starts.
 
 **Scoping the temperature check.** The temperature alert checks every
 `temperature` sensor by default, which includes **device** temperatures — a NAS,
@@ -219,7 +258,7 @@ to keep the legacy behaviour of checking **all** temperature sensors.
 
 A separate Home Assistant integration, **AI Agent** (`claude_ha`), lets you talk
 to Codex from **Assist** (text and voice) and from an `ask` service in
-automations — without opening the console. It talks to this add-on over a
+automations — without opening the console. It talks to this app over a
 dedicated, locked-down HTTP endpoint called the **Prompt API**.
 
 The Prompt API is designed for running Codex on **untrusted input** (whatever a
@@ -229,7 +268,7 @@ deliberately much more restricted than the interactive console:
 - **Separate internal port, never published to the host.** It is reachable
   only from Home Assistant's internal network; requests from anywhere else are
   refused.
-- **Bearer token on every request** (constant-time checked). The add-on generates
+- **Bearer token on every request** (constant-time checked). The app generates
   the token and shares it with the integration automatically through Supervisor
   discovery — you configure nothing.
 - **Each prompt runs a fresh, stateless, read-only Codex** with deny-by-default
@@ -240,7 +279,7 @@ deliberately much more restricted than the interactive console:
   **Model Context Protocol Server** integration, so Codex can see and touch
   **only the entities you have exposed to Assist**.
 - **What bounds such a run, exactly.** A read-only sandbox first: the CLI itself
-  refuses a file write in that mode, measured inside this add-on — with the
+  refuses a file write in that mode, measured inside this app — with the
   sandbox read-only a forced patch was rejected ("writing is blocked by
   read-only sandbox") and nothing was written, and that is the mode every prompt
   run asks for. Around it: an empty, private working directory created for the
@@ -251,10 +290,10 @@ deliberately much more restricted than the interactive console:
   every tool that runs a command, reaches the network or loads something you
   installed is switched off by name. On the Home Assistant side the run is given
   a tool server carrying only the tools that request allows, and everything it
-  sends passes the add-on's own loopback relay, which forwards nothing but that
+  sends passes the app's own loopback relay, which forwards nothing but that
   tool server and a camera snapshot, never hands out your Home Assistant token,
   and writes each call to the audit log. What the sandbox cannot add here is
-  process-level isolation: the CLI's Linux sandbox needs a privilege an add-on
+  process-level isolation: the CLI's Linux sandbox needs a privilege an app
   container does not have, so the enclosing boundary is the container itself.
 - **Actions require confirmation, and the confirmed action is executed from the
   validated request only.** A read request that would change state returns a
@@ -271,7 +310,7 @@ deliberately much more restricted than the interactive console:
   with the arguments it used and what Home Assistant answered — written when Home
   Assistant answers it, where the call passes rather than by the agent itself, so
   the record does not depend on the agent keeping it. A call that failed is recorded too, marked `(failed)`, and a call still
-  unanswered when the add-on stops is settled rather than dropped. Read the limit
+  unanswered when the app stops is settled rather than dropped. Read the limit
   with it: in this version a write to that log that fails — a full or read-only
   `/data` — is not detected, so an action can happen with no line and nothing
   saying so.
@@ -286,22 +325,22 @@ deliberately much more restricted than the interactive console:
   Assistant language, and voice replies are kept to one short, spoken-friendly
   sentence.
 
-### What the add-on reports about itself (`/api/status`)
+### What the app reports about itself (`/api/status`)
 
-Besides readiness and the add-on's own `version`, `/api/status` names the agent
+Besides readiness and the app's own `version`, `/api/status` names the agent
 behind the Prompt API, so the integration can adapt to it:
 
 | field | meaning |
 |---|---|
-| `ready` | `true` only when the CLI is installed **and** the add-on has a sign-in: either `codex login` has been completed in the console (it stores the sign-in under `/data/codex`) or **API Key** is set in the options. A freshly installed add-on reports `false` until one of those happens — the normal state between installing and signing in, not a fault, and no request has to be made first. `true` means a sign-in is stored, not that OpenAI still accepts it (see [When the sign-in stops working](#when-the-sign-in-stops-working)) |
+| `ready` | `true` only when the CLI is installed **and** the app has a sign-in: either `codex login` has been completed in the console (it stores the sign-in under `/data/codex`) or **API Key** is set in the options. A freshly installed app reports `false` until one of those happens — the normal state between installing and signing in, not a fault, and no request has to be made first. `true` means a sign-in is stored, not that OpenAI still accepts it (see [When the sign-in stops working](#when-the-sign-in-stops-working)) |
 | `auth` | whether OpenAI still accepts the sign-in, as `{"state", "since"}`: `state` is `ok` once a request was answered, `expired` once one was refused for its sign-in, and `unknown` before either has happened; `since` is when that state began (ISO-8601), or `null`. It is kept across restarts and updates, and reading it runs no request |
-| `engine` | the agent's stable name; `codex` for this add-on |
+| `engine` | the agent's stable name; `codex` for this app |
 | `engine_version` | the agent's version, as `codex --version` reports it; empty until it has been read |
-| `core_version`, `core_commit` | the release and commit of the shared core this add-on runs; the add-on log states the same when the console starts: `Codex Console listening on [::]:8099 (core X.Y.Z, commit <12 hex>)` |
+| `core_version`, `core_commit` | the release and commit of the shared core this app runs; the app log states the same when the console starts: `Codex Console listening on [::]:8099 (core X.Y.Z, commit <12 hex>)` |
 | `request_fields` | the request fields `POST /api/prompt` accepts; a field not listed is refused |
 | `prompt_max_bytes`, `body_max_bytes` | the largest prompt and request body `POST /api/prompt` accepts |
 
-There is no `budget` field: this add-on's CLI reports no cost, so no spend is
+There is no `budget` field: this app's CLI reports no cost, so no spend is
 counted and no daily budget can be enforced.
 
 Every error answer carries a stable `code` next to its message (and `field` or
@@ -312,14 +351,14 @@ Every error answer carries a stable `code` next to its message (and `field` or
 
 `/api/status` publishes a rolling window over the last 50 companion-chat runs,
 which the integration turns into a *chat health* sensor. The window is durable —
-it survives an add-on restart, so an update does not reset it to a flattering
+it survives an app restart, so an update does not reset it to a flattering
 blank — and it is trimmed by **count**, never by age.
 
 That last point is deliberate, and it is why the fields below exist. On an install
 where Assist is used a few times a day, "the last 50 runs" spans weeks. So the
-add-on reports **what happened, in what order, and when**, and leaves the question
+app reports **what happened, in what order, and when**, and leaves the question
 of *what counts as healthy* to the consumer, which is where the threshold can be
-changed without an add-on release.
+changed without an app release.
 
 | field | meaning |
 |---|---|
@@ -334,7 +373,7 @@ changed without an add-on release.
 | `window_dated` | how many of `recent` those two bounds were measured from |
 
 Every `*_ts` is **epoch milliseconds**, and **`null` means unknown** — never "now"
-and never `0`. A field that is **absent** rather than null means the add-on predates it.
+and never `0`. A field that is **absent** rather than null means the app predates it.
 
 **Read the span together with `window_dated`.** It says how many runs the bounds
 came from, and it is what makes them readable: `window_dated` equal to `recent`
@@ -347,7 +386,7 @@ successful runs, and a failure rate is `degraded / recent`.
 
 ### Account limits (`/api/account_limits`)
 
-`/api/usage` reports what **this add-on** spent, in tokens. `/api/account_limits`
+`/api/usage` reports what **this app** spent, in tokens. `/api/account_limits`
 reports something different: how much of **your account's** limits you have
 used — across every machine and every session, not just the ones that ran here.
 It is published so the integration can turn it into sensors: a percentage per
@@ -381,7 +420,7 @@ devices, so a drafted automation can only do ordinary household things. An edit
 preserves the parts you didn't ask to change; a delete always asks first and, when
 more than one automation matches, asks which — it never removes an ambiguous one.
 
-To use it, install the `claude_ha` integration (it will detect this add-on
+To use it, install the `claude_ha` integration (it will detect this app
 automatically) and, for live HA context, install Home Assistant's *Model Context
 Protocol Server* integration and set `prompt_ha_token`. To turn the endpoint off
 entirely, set `prompt_api` to false.
@@ -392,13 +431,13 @@ Everything that matters lives in `/data` and survives restarts and updates: logi
 
 ## Troubleshooting
 
-- **Blank screen** — check the add-on log; restart the add-on.
+- **Blank screen** — check the app log; restart the app.
 - **Every AI Agent request fails with `auth-expired`, or Codex reports `unauthorized (401)`** — the ChatGPT sign-in is no longer accepted; see [When the sign-in stops working](#when-the-sign-in-stops-working).
 - **401 / frozen after long idle** — the ingress session expires after 15 minutes without traffic; the console reloads automatically, or refresh the page.
 - **Copy does not reach the clipboard** — rare now (selecting text copies in the pointer gesture, which works over plain HTTP too). If a browser blocks the clipboard even inside a gesture, the text is still saved to the 📥 tray — one tap to copy — and serving HA over HTTPS avoids it entirely.
 - **TLS on Home Assistant itself** — if you set `ssl_certificate` in the `http:` integration, or moved
-  Core off port 8123, the add-on follows automatically: it asks the Supervisor where Core listens
-  instead of assuming `http://homeassistant:8123`. Nothing to configure. Inside the add-on,
+  Core off port 8123, the app follows automatically: it asks the Supervisor where Core listens
+  instead of assuming `http://homeassistant:8123`. Nothing to configure. Inside the app,
   `$HA_URL` always holds the right address — prefer it over a hardcoded one in scripts.
 - **`bypass_permissions` refuses to start** — if a CLI update ever breaks this, run `update-codex <previous-version>` in a shell tab and report an issue.
 
