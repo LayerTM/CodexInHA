@@ -156,6 +156,8 @@ engine_provision() {
 engine_console_env() {
     REMOTE_CONTROL=$(jq -r '.remote_control // false' /data/options.json 2>/dev/null || echo false)
     export REMOTE_CONTROL
+    # protect_secrets turned off since the last start: say so in Home Assistant.
+    /usr/local/bin/secrets-guard-notice
 }
 
 # Prompt runs carry every restriction on their own command line and read no

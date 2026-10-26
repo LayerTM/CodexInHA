@@ -41,11 +41,12 @@ def test_groups_by_interpreter() -> None:
         "bin/c": ("#!/usr/bin/env node\n'use strict';\n", True),
         "bin/d": ("#!/usr/bin/python3\npass\n", True),
         "bin/e": ("#!/usr/bin/bashio\ntrue\n", True),
+        "bin/g": ("#!/bin/bash-static\ntrue\n", True),
         # Not executable: it is not a script the repository ships as a command.
         "lib/f": ("#!/usr/bin/env node\n", False),
     })
     groups, unknown = lint_targets.classify(repo)
-    check(groups["shell"] == ["bin/a", "bin/b", "bin/e"], f"shell group: {groups['shell']}")
+    check(groups["shell"] == ["bin/a", "bin/b", "bin/e", "bin/g"], f"shell group: {groups['shell']}")
     check(groups["node"] == ["bin/c"], f"node group: {groups['node']}")
     check(groups["python"] == ["bin/d"], f"python group: {groups['python']}")
     check(unknown == [], f"unknown: {unknown}")

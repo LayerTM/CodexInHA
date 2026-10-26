@@ -25,6 +25,15 @@ configuration:
       the boundary around it is the app container. This option decides the
       approval prompts. The prompt API is separate: it always runs a read-only
       Codex, whatever this is set to.
+  protect_secrets:
+    name: Protect Secrets
+    description: >-
+      Keeps Codex from reading or changing the files where Home Assistant
+      stores credentials: secrets.yaml, users' tokens and passwords, the
+      integrations' keys and the Home Assistant Cloud sign-in. On by default.
+      It protects against the agent opening them, not against everything an
+      agent with your configuration could do — see "Security and privacy" in
+      the documentation.
   auto_update:
     name: Auto-Update Codex
     description: >-

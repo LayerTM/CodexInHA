@@ -1,0 +1,11 @@
+# Codex requirements for every run in this app: each tool call goes past the
+# secrets guard first. The hook itself lets everything through when
+# protect_secrets is off (see /usr/local/bin/secrets-guard). Requirements
+# cannot be overridden by the user's or a project's configuration.
+[[hooks.PreToolUse]]
+
+[[hooks.PreToolUse.hooks]]
+type = "command"
+command = "/usr/local/bin/secrets-guard-hook"
+timeout = 10
+statusMessage = "Checking for protected files"

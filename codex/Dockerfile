@@ -18,10 +18,14 @@ ENV LANG=C.UTF-8
 # - ripgrep: fast search from the console
 # - bubblewrap: the Codex CLI probes PATH for `bwrap` at every start and warns
 #   when it is absent, then falls back to its bundled copy
+# - bash-static: runs what s6 starts before protect_secrets confines the
+#   service (secrets-guard, the finish script). A static shell loads no shared
+#   library, so nothing the agent could change takes part in that decision
 # - the rest: general command-line tooling for the agent and the MCP servers
 RUN apt-get update \
     && apt-get install -y --no-install-recommends \
         bash \
+        bash-static \
         bubblewrap \
         build-essential \
         ca-certificates \
@@ -155,7 +159,7 @@ RUN arch="$(dpkg --print-architecture)" \
 # upstream: pypi homeassistant-cli
 ARG HASS_CLI_VERSION=1.0.0
 # upstream: pypi hass-mcp
-ARG HASS_MCP_VERSION=0.6.0
+ARG HASS_MCP_VERSION=0.6.1
 # upstream: pypi Pillow
 ARG PILLOW_VERSION=13.0.0
 RUN pip install --no-cache-dir --break-system-packages \
@@ -235,8 +239,11 @@ RUN chmod +x /etc/s6-overlay/s6-rc.d/codex/run \
 # Surface console health to the Supervisor. Hits the loopback health endpoint
 # (allowed by the console's IP guard); marks the add-on unhealthy if the Node
 # console stops responding. The generous start period covers the first-run setup.
+# Docker runs this outside the service's guarded mode (protect_secrets), so it
+# runs the static shell by its path — no program found through PATH, no shared
+# library — and speaks HTTP itself.
 HEALTHCHECK --interval=30s --timeout=5s --start-period=90s --retries=3 \
-    CMD ["curl", "-fsS", "http://127.0.0.1:8099/api/health"]
+    CMD ["/usr/bin/bash-static", "-c", "exec 3<>/dev/tcp/127.0.0.1/8099 && printf 'GET /api/health HTTP/1.0\\r\\nHost: 127.0.0.1\\r\\n\\r\\n' >&3 && read -r -t 4 status <&3 && [[ $status =~ ^HTTP/1\\.[01]\\ 2[0-9][0-9] ]]"]
 
 LABEL \
     io.hass.name="Codex" \

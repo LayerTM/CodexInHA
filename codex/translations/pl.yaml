@@ -26,6 +26,15 @@ configuration:
       sesja, a granicą wokół niej jest kontener dodatku. Ta opcja decyduje o
       prośbach o zatwierdzenie. Prompt API jest osobne: zawsze działa w sesji
       Codex tylko do odczytu, niezależnie od tego ustawienia.
+  protect_secrets:
+    name: Ochrona sekretów
+    description: >-
+      Nie pozwala Codex czytać ani zmieniać plików, w których Home Assistant
+      przechowuje dane logowania: secrets.yaml, tokenów i haseł użytkowników,
+      kluczy integracji oraz logowania do Home Assistant Cloud. Domyślnie
+      włączone. Chroni przed otwarciem tych plików przez agenta, ale nie przed
+      wszystkim, co może zrobić agent z dostępem do konfiguracji — zobacz
+      „Security and privacy” w dokumentacji.
   auto_update:
     name: Automatyczna aktualizacja Codex
     description: >-
