@@ -13,7 +13,7 @@ configuration:
       Profile → Security → Long-lived access tokens. When set, Codex can take
       dashboard screenshots (ha-shot), use hass-cli and the hass-mcp tools, and
       reach Home Assistant over WebSocket/REST as you. Stored encrypted and
-      persists across add-on updates. Leave empty to skip these features.
+      persists across app updates. Leave empty to skip these features.
   bypass_permissions:
     name: Skip Approval Prompts
     description: >-
@@ -22,13 +22,13 @@ configuration:
       Only enable this if you fully trust Codex's decisions.
       Corresponds to the --dangerously-bypass-approvals-and-sandbox flag.
       Either way the console runs unsandboxed — it is your own session, and
-      the boundary around it is the add-on container. This option decides the
+      the boundary around it is the app container. This option decides the
       approval prompts. The prompt API is separate: it always runs a read-only
       Codex, whatever this is set to.
   auto_update:
     name: Auto-Update Codex
     description: >-
-      When enabled, Codex checks for and installs updates on every add-on
+      When enabled, Codex checks for and installs updates on every app
       startup. Disable if you want to pin a specific version.
       You can still update manually by running 'codex update' in the terminal.
   model:
@@ -51,7 +51,7 @@ configuration:
   init_commands:
     name: Initialization Commands
     description: >-
-      Shell commands run during add-on startup before Codex launches.
+      Shell commands run during app startup before Codex launches.
       Useful for installing additional tools or MCP servers.
       Examples: 'npm install -g @openai/some-mcp-server'
       or 'apt-get install -y ffmpeg'
@@ -122,7 +122,7 @@ configuration:
   daily_digest_time:
     name: Morning Digest Time (HH:MM)
     description: >-
-      When set to a time like 08:00 (add-on timezone), Codex sends one short,
+      When set to a time like 08:00 (app timezone), Codex sends one short,
       friendly morning briefing a day — today's weather plus a gentle heads-up
       about anything worth noting (lights left on overnight, a door left open, low
       batteries). Requires Codex to be logged in and spends a little plan usage
@@ -240,7 +240,7 @@ configuration:
     name: Prompt API Token (optional)
     description: >-
       Bearer token the companion integration must present to the prompt API.
-      Leave empty (recommended): the add-on generates a strong token
+      Leave empty (recommended): the app generates a strong token
       automatically and hands it to the integration through Supervisor
       discovery — no manual setup needed. Set it only if you want a fixed,
       known token as a manual fallback.

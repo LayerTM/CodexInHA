@@ -2,16 +2,17 @@
 
 <img src="codex/logo.png" alt="Codex for Home Assistant" width="440">
 
-# Codex — Home Assistant Add-on
+# Codex — Home Assistant App
 
 OpenAI's [Codex](https://github.com/openai/codex) CLI, running inside Home Assistant as a web
-console — and answering from Assist, in text and in voice.
+console — and answering from Assist, in text and in voice. It is a Home Assistant app (formerly
+called an add-on).
 
-[![Open your Home Assistant instance and show the add-on repository dialog.](https://my.home-assistant.io/badges/supervisor_add_addon_repository.svg)](https://my.home-assistant.io/redirect/supervisor_add_addon_repository/?repository_url=https%3A%2F%2Fgithub.com%2FLayerTM%2FCodexInHA)
+[![Open your Home Assistant instance and show the app repository dialog.](https://my.home-assistant.io/badges/supervisor_add_addon_repository.svg)](https://my.home-assistant.io/redirect/supervisor_add_addon_repository/?repository_url=https%3A%2F%2Fgithub.com%2FLayerTM%2FCodexInHA)
 
 [![Version](https://img.shields.io/badge/dynamic/yaml?url=https%3A%2F%2Fraw.githubusercontent.com%2FLayerTM%2FCodexInHA%2Fmain%2Fcodex%2Fconfig.yaml&query=%24.version&prefix=v&label=version&color=10A37F)](codex/CHANGELOG.md)
 [![License](https://img.shields.io/github/license/LayerTM/CodexInHA?color=blue)](LICENSE)
-[![Home Assistant Add-on](https://img.shields.io/badge/Home%20Assistant-Add--on-18BCF2?logo=home-assistant&logoColor=white)](https://www.home-assistant.io/)
+[![Home Assistant App](https://img.shields.io/badge/Home%20Assistant-App-18BCF2?logo=home-assistant&logoColor=white)](https://www.home-assistant.io/)
 
 [![aarch64](https://img.shields.io/badge/aarch64-supported-2ea043)](codex/config.yaml)
 [![amd64](https://img.shields.io/badge/amd64-supported-2ea043)](codex/config.yaml)
@@ -20,7 +21,7 @@ console — and answering from Assist, in text and in voice.
 [![Last commit](https://img.shields.io/github/last-commit/LayerTM/CodexInHA?color=41BDF5)](https://github.com/LayerTM/CodexInHA/commits/main)
 [![Buy Me a Coffee](https://img.shields.io/badge/Buy%20Me%20a%20Coffee-support-FFDD00?logo=buymeacoffee&logoColor=black)](https://buymeacoffee.com/layertme)
 
-<img src="images/console.jpg" alt="The add-on's console: the Codex CLI in one tab, a shell in another" width="820">
+<img src="images/console.jpg" alt="The app's console: the Codex CLI in one tab, a shell in another" width="820">
 
 <img src="images/console-demo.gif" alt="Asking Codex in the console whether a lamp is on: it reads the bundled entity skill, checks the state with ha-state and answers" width="820">
 
@@ -34,7 +35,7 @@ console — and answering from Assist, in text and in voice.
   HTTP, drag-and-drop attachments, a searchable scrollback, and a touch key bar on phones.
 - **Home Assistant, already wired up** — `ha`, `ha-state`, `ha-check`, `hass-cli`, `yq` and a
   bundled skill pack are preinstalled, and Codex works in your configuration directory.
-- **Chat from Assist** — a companion integration talks to the add-on over a locked-down prompt API,
+- **Chat from Assist** — a companion integration talks to the app over a locked-down prompt API,
   so you can ask about the house by text or voice. Each request runs a fresh, read-only Codex with
   no shell, no web and none of your own configuration, and can touch only the entities you have
   exposed to Assist. An action is proposed first and carried out only after you confirm it.
@@ -46,17 +47,17 @@ console — and answering from Assist, in text and in voice.
 
 ## Installation
 
-1. Click the badge above, or add this repository under
-   **Settings → Add-ons → Add-on Store → ⋮ → Repositories**:
+1. Click the badge above, or go to **Settings → Apps → Install app**, open the **⋮** menu (top
+   right) → **Repositories**, paste the address below and press **Add**:
    ```
    https://github.com/LayerTM/CodexInHA
    ```
-2. Install **Codex** from the store and start it.
-3. Open it with **Open Web UI** on the add-on page. Home Assistant leaves **Show in sidebar** off
-   for every add-on it installs — turn it on there if you want a **Codex** entry in the sidebar.
+2. Open **Codex** in the App store, then **Install** and **Start**.
+3. Click **Open Web UI**. Home Assistant leaves **Show in sidebar** (on the app's **Info** tab) off
+   for every app it installs — turn it on there if you want a **Codex** entry in the sidebar.
 
 Sign in from the console: run `codex login` and follow the link to use your ChatGPT plan, or set an
-**API Key** in the add-on's configuration. See the
+**API Key** in the app's configuration. See the
 [documentation](codex/DOCS.md) for everything else.
 
 ## Requirements
@@ -69,23 +70,23 @@ Sign in from the console: run `codex login` and follow the link to use your Chat
 ## Works with
 
 - [**AI Agent**](https://github.com/LayerTM/claude-ha) (`claude_ha`) — the companion integration
-  that puts this add-on behind Assist, in text and in voice.
+  that puts this app behind Assist, in text and in voice.
 - [**Claude Code for Home Assistant**](https://github.com/LayerTM/ClaudeInHA) — the same console and
   the same prompt API running Anthropic's Claude Code.
 
 ## Documentation
 
-The add-on's **Documentation** tab, or [`codex/DOCS.md`](codex/DOCS.md): every option, what the
+The app's **Documentation** tab, or [`codex/DOCS.md`](codex/DOCS.md): every option, what the
 prompt API refuses and why, the audit log, and the alert rules.
 
 ## What is in this repository
 
 | path | what it is |
 |---|---|
-| `codex/` | the add-on: its Dockerfile, options, engine hooks and the Codex adapter |
+| `codex/` | the app: its Dockerfile, options, engine hooks and the Codex adapter |
 | `codex/app/adapter/` | everything the console and the prompt API need to know about Codex |
 | `codex/core/` | the pinned `ha-agent-core` release and the verifier that checks it |
-| `codex/rootfs/` | the service, the engine hooks and the commands the add-on installs |
+| `codex/rootfs/` | the service, the engine hooks and the commands the app installs |
 | `codex/skills/` | the bundled Home Assistant skill pack |
 
 The console, the prompt server and the background loops are not in this repository: they come from
@@ -103,7 +104,7 @@ codex/core/assemble.sh /tmp/core/core.tar codex /tmp/addon
 cd /tmp/addon/app && "/tmp/addon/install-tools/npm-ci-checked.sh" && npm test
 ```
 
-The add-on's own tests need none of that and run straight from a checkout, with no dependencies to
+The app's own tests need none of that and run straight from a checkout, with no dependencies to
 install:
 
 ```sh
@@ -130,5 +131,5 @@ Behaviour changes get an entry in `codex/CHANGELOG.md`.
 
 [MIT](LICENSE) © 2026 LayerTM
 
-Codex and ChatGPT are products of OpenAI. This is an independent, community-maintained add-on, and
+Codex and ChatGPT are products of OpenAI. This is an independent, community-maintained app, and
 is not affiliated with or endorsed by OpenAI or the Home Assistant project.
