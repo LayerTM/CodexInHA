@@ -38,46 +38,6 @@ again. The app cannot renew it for you.
   sign-in, so the next one already runs with the new one.
 - **Avoid it:** an **API key** needs no sign-in renewal.
 
-## Security and privacy
-
-Codex can read and change your Home Assistant configuration and run shell commands, so know what it
-can reach before you give it a task.
-
-### What the app can reach
-
-| Folder | Access |
-|---|---|
-| `/homeassistant` (your configuration, including `secrets.yaml`) | read and write |
-| `/config` (this app's own configuration folder) | read and write |
-| `/share` | read and write |
-| `/media` | read and write |
-| `/ssl` | read-only |
-| `/backup` | read-only |
-
-Beyond the folders, the app uses the Supervisor API with the `manager` role (it can create backups
-and manage other apps) and the Home Assistant API. The console is your own session and runs without
-the CLI's file sandbox; the boundary around it is the app's container.
-
-### What leaves your home
-
-Whatever Codex reads or runs in a session — a file, a command's output, an entity state — becomes
-part of the conversation and is sent to OpenAI, to answer you. Nothing is sent through any other
-server. If a file holds something you do not want OpenAI to see, do not ask Codex to open it.
-
-### Approvals
-
-- **`bypass_permissions` off (default):** the console starts Codex with `--sandbox danger-full-access`
-  and the approval prompts stay on. The app does not promise a prompt before every file read.
-- **`bypass_permissions` on:** Codex starts with `--dangerously-bypass-approvals-and-sandbox` and
-  asks for nothing.
-- The prompt API is separate: it always runs read-only (see below).
-
-### The Home Assistant token
-
-`ha_token` is optional. When set, Codex calls the Home Assistant API with that user's rights, so it
-can do whatever that user can. Leave it empty if you do not need dashboard screenshots, `hass-cli`
-or `hass-mcp`.
-
 ## The console
 
 - **Tabs** — ● Codex plus any number of shell tabs (+). Exiting Codex shows a restart menu; the session never dies with it.

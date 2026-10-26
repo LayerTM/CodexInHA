@@ -58,8 +58,7 @@ called an add-on).
 
 Sign in from the console: run `codex login` and follow the link to use your ChatGPT plan, or set an
 **API Key** in the app's configuration. See the
-[documentation](codex/DOCS.md) for everything else, and
-[Security and privacy](codex/DOCS.md#security-and-privacy) for what the app can reach and what leaves your home.
+[documentation](codex/DOCS.md) for everything else.
 
 ## Requirements
 
