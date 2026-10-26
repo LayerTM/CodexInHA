@@ -14,8 +14,9 @@
   The documentation's new "Security and privacy" section lists what is
   protected and what is not. On a host without AppArmor only the command
   check is on, and the start-up log says so. Turn the option off to give
-  Codex the files; when the app starts with it off after it was on, Home
-  Assistant shows "Secrets protection was turned off".
+  Codex the files. Whenever the app starts with less protection than before
+  (the option turned off, or the kernel half lost), Home Assistant shows a
+  notification with the reason.
 - The `ha-debug` skill lists integrations through the Home Assistant API
   instead of reading `.storage/core.config_entries`.
 - hass-mcp 0.6.1.
