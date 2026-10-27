@@ -210,6 +210,9 @@ engine_provision_plugins() {
 
 engine_mcp_has() { codex mcp list 2>/dev/null | grep -qE "(^|\s)${1}(\s|:|$)"; }
 
+# engine_mcp_remove NAME
+engine_mcp_remove() { codex mcp remove "$1"; }
+
 # engine_mcp_add NAME [KEY=VALUE...] -- ARGV...
 engine_mcp_add() {
     local name="$1" env_args=()
