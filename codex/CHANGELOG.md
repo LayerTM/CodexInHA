@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.3.1
+
+- The configuration folder is declared with the map type `app_config`; the Supervisor deprecated `addon_config`
+  and logged a warning at every start. The folder is the same one, mounted at the same path.
+  Needs Supervisor 2026.07.1 or newer (older ones skip the store entry; the installed version keeps running).
+- Built on ha-agent-core 0.11.2 ([release notes](https://github.com/LayerTM/ha-agent-core/releases/tag/v0.11.2)):
+  the `hass-mcp` registration follows the current Home Assistant URL and token at every start, so a
+  changed token replaces it and a removed token unregisters it.
+- Codex CLI 0.164.0 → 0.165.0 ([release notes](https://github.com/openai/codex/releases/tag/rust-v0.165.0))
+- Node.js 26.12.1 → 26.13.0, now Long Term Support ([release notes](https://github.com/nodejs/node/blob/main/doc/changelogs/CHANGELOG_V26.md#26.13.0))
+
 ## 0.3.0
 
 - New option `protect_secrets`, on by default: Codex can no longer read or
