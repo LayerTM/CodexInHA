@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.3.2
+
+- Built on ha-agent-core 0.11.3 ([release notes](https://github.com/LayerTM/ha-agent-core/releases/tag/v0.11.3)):
+  changing the personal skills repository option now replaces the cached clone with a fresh clone of the new
+  repository; before, the old repository kept being pulled.
+
 ## 0.3.1
 
 - The configuration folder is declared with the map type `app_config`; the Supervisor deprecated `addon_config`
