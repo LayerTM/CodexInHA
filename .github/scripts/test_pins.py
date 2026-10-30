@@ -237,6 +237,15 @@ check("a newer major that has had an LTS release is taken", "26.8.1 -> 28.1.0" i
 same = json.dumps([{"version": "v27.0.0", "lts": False}, {"version": "v26.9.0", "lts": False}]).encode()
 code, out = run(repo(), answers(**{"https://nodejs.org/dist/index.json": same}), "check")
 check("otherwise the newest release on the pinned major line", "26.8.1 -> 26.9.0" in out, True)
+pre = json.dumps([{"version": "v27.0.0-alpha.0.0.0", "lts": False}, {"version": "v26.9.0", "lts": False}]).encode()
+code, out = run(repo(), answers(**{"https://nodejs.org/dist/index.json": pre}), "check")
+check("a pre-release listed first is skipped for the newest release", "26.8.1 -> 26.9.0" in out, True)
+pre26 = json.dumps([{"version": "v26.10.0-rc.1", "lts": False}, {"version": "v26.9.0", "lts": False}]).encode()
+code, out = run(repo(), answers(**{"https://nodejs.org/dist/index.json": pre26}), "check")
+check("a pre-release on the pinned major is never chosen", "26.8.1 -> 26.9.0" in out and "rc" not in out, True)
+code, out = run_safely(answers(**{"https://nodejs.org/dist/index.json": b'[{"version": "vgarbage", "lts": false}]'}))
+check("an unreadable Node.js version still fails closed", code, 2)
+
 
 print("bump")
 root = repo()
