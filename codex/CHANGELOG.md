@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.3.3
+
+- Built on ha-agent-core 0.11.4 ([release notes](https://github.com/LayerTM/ha-agent-core/releases/tag/v0.11.4)):
+  on an installation with a large list of entity states, every confirmed action through Assist failed; the list
+  is now read as it arrives and large tool catalogs, live context and tool answers no longer fail either.
+  An answer past its bound is refused and named as too large instead of reported as success or silence.
+- Codex CLI 0.166.0 and Playwright MCP 0.0.84.
+
 ## 0.3.2
 
 - Built on ha-agent-core 0.11.3 ([release notes](https://github.com/LayerTM/ha-agent-core/releases/tag/v0.11.3)):
