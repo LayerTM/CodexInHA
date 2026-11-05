@@ -6,7 +6,7 @@
   on an installation with a large list of entity states, every confirmed action through Assist failed; the list
   is now read as it arrives and large tool catalogs, live context and tool answers no longer fail either.
   An answer past its bound is refused and named as too large instead of reported as success or silence.
-- Codex CLI 0.166.0 and Playwright MCP 0.0.84.
+- Codex CLI 0.166.0, Playwright MCP 0.0.84 and base image 9.5.2.
 
 ## 0.3.2
 
