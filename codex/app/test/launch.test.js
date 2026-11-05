@@ -181,6 +181,15 @@ test('the Home Assistant server is registered with the token only in the environ
   assert.equal(argv.at(-1), '-');
 });
 
+test('the per-call tool time limit the core states is set on the server, and only then', () => {
+  const timeout = (ha) => configs(launch({ ha }).argv).filter((a) => a.includes('tool_timeout_sec'));
+  assert.deepEqual(timeout({ ...HA, toolTimeoutSeconds: 90 }), ['mcp_servers.ha.tool_timeout_sec=90']);
+  assert.deepEqual(timeout(HA), [], 'no stated limit: the CLI keeps its own default');
+  for (const bad of [0, -1, 1.5, '90', null, NaN]) {
+    assert.throws(() => launch({ ha: { ...HA, toolTimeoutSeconds: bad } }), /tool timeout/, String(bad));
+  }
+});
+
 test('no allowed tool means no server at all', () => {
   for (const ha of [null, undefined, { ...HA, tools: [] }, { ...HA, tools: undefined }]) {
     const { argv, env } = launch({ ha });

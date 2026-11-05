@@ -1,5 +1,22 @@
 # Changelog
 
+## 0.3.5
+
+- Built on ha-agent-core 0.12.0 ([release notes](https://github.com/LayerTM/ha-agent-core/releases/tag/v0.12.0)).
+- Home Assistant cuts a single tool call off after 60 seconds, however long the action would take. The agent
+  now reads that as a clear message (the tool was cut off at its limit and the action may not have
+  finished) instead of a bare timeout, and the call is recorded as failed. The agent's own tool time limit is
+  raised above Home Assistant's, so the message always comes from Home Assistant's side.
+- A very large answer from Home Assistant, from many devices that were each large, could run the add-on out
+  of memory; it now has its own memory budget. Asking Assist for a device on an install too large for that
+  now says Home Assistant's answer is too large, instead of asking you to try again.
+- The console page reloads its stylesheets and scripts by itself, up to five times over about 30 seconds,
+  when they do not arrive, and then says the console could not load.
+- The console's menus stay on the screen on a narrow window.
+- Stopping the add-on cancels a tool call that is still running, for example a script in the middle of its
+  delay. This corrects the 0.3.4 note below: a script with a delay runs to its end when the agent finishes or
+  disconnects, but not when the add-on itself is stopped or restarted.
+
 ## 0.3.4
 
 - Built on ha-agent-core 0.11.5 ([release notes](https://github.com/LayerTM/ha-agent-core/releases/tag/v0.11.5)):

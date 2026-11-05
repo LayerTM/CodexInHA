@@ -362,3 +362,13 @@ test('the one-shot question removes its own directory once its child has exited'
     fs.rmSync(procRoot, { recursive: true, force: true });
   }
 });
+
+test('a run with Home Assistant tools carries the tool time limit the core states, and one without carries none', () => {
+  const { launchSpec } = require('../../server/prompt/run');
+  const relayConf = { url: 'http://127.0.0.1:8099/mcp', token: 't' };
+  const withTools = launchSpec({ mcpConfigPath: '/tmp/mcp.json', haTools: ['GetLiveContext'], intents: [] });
+  assert.ok(withTools.toolTimeoutSeconds > 60, 'the core asks for more than the 60 s the CLI defaults to');
+  assert.equal(runner.haServer(withTools, relayConf).toolTimeoutSeconds, withTools.toolTimeoutSeconds);
+  const without = launchSpec({ intents: [] });
+  assert.equal(runner.haServer(without, null), null);
+});

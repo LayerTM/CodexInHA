@@ -235,6 +235,19 @@ function writeSchema(dir, schema) {
   return file;
 }
 
+// The Home Assistant server a run registers: the relay, the tools the run may
+// call, and the per-call time limit the core states for them. Null when the run
+// has no relay or may call no tool.
+function haServer(spec, ha) {
+  if (!ha || spec.haAllowed.length === 0) return null;
+  return {
+    url: ha.url,
+    token: ha.token,
+    tools: spec.haAllowed.map(toolBasename).filter(Boolean),
+    toolTimeoutSeconds: spec.toolTimeoutSeconds,
+  };
+}
+
 /**
  * The complete command line and extra environment for one run spec.
  */
@@ -258,9 +271,7 @@ function launchRun(spec, { env }) {
     schemaFile: writeSchema(runDir, spec.schema),
     model: spec.model || undefined,
     imageFile: spec.vision && spec.imagePath ? spec.imagePath : undefined,
-    ha: ha && spec.haAllowed.length > 0
-      ? { url: ha.url, token: ha.token, tools: spec.haAllowed.map(toolBasename).filter(Boolean) }
-      : null,
+    ha: haServer(spec, ha),
   });
   // The core's system prompt, as a developer message. The CLI has no flag for
   // one, and the request text is stdin, which the core owns.
@@ -414,6 +425,8 @@ module.exports = {
   // reads, and nothing else in the add-on ties the two halves together. Read by
   // test/assembled/mcp-config-contract.test.js.
   relay,
+  // Exported for test/assembled/runner.test.js: what a run spec asks of the HA server.
+  haServer,
   launch: launchRun,
   createDecoder,
 };

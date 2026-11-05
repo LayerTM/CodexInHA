@@ -219,7 +219,7 @@ function askLaunch(p) {
  *   form the core gives this engine (see `closedSchemasOnly`)
  * @param {string} [p.model]
  * @param {string} [p.imageFile]    a camera snapshot the core fetched
- * @param {{url: string, token: string, tools: string[]}|null} [p.ha]
+ * @param {{url: string, token: string, tools: string[], toolTimeoutSeconds?: number}|null} [p.ha]
  *   the request's MCP endpoint and the exact tool names it may call; null or an
  *   empty tool list registers no server at all
  * @returns {{argv: string[], cwd: string, env: Record<string, string>}}
@@ -260,6 +260,14 @@ function promptLaunch(p) {
       '-c', `${key}.bearer_token_env_var=${tomlString(HA_TOKEN_ENV)}`,
       '-c', `${key}.default_tools_approval_mode="approve"`,
     );
+    // The core states how long one tool call may take (spec.toolTimeoutSeconds,
+    // above Home Assistant's own 60 s); the CLI's per-server limit is this
+    // engine's way to honour it. Without it the documented default of 60 s applies.
+    if (ha.toolTimeoutSeconds !== undefined) {
+      const seconds = ha.toolTimeoutSeconds;
+      if (!Number.isInteger(seconds) || seconds <= 0) throw new Error('ha: invalid tool timeout');
+      argv.push('-c', `${key}.tool_timeout_sec=${seconds}`);
+    }
     env[HA_TOKEN_ENV] = ha.token;
   }
   // The request text arrives on stdin, never as an argument.
