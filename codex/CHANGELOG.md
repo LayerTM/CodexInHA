@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.3.5
+
+- Built on ha-agent-core 0.12.0 ([release notes](https://github.com/LayerTM/ha-agent-core/releases/tag/v0.12.0)).
+- Home Assistant cuts a single tool call off after 60 seconds, however long the action would take. The agent
+  now reads that as a clear message (the tool was cut off at its limit and the action may not have
+  finished) instead of a bare timeout, and the call is recorded as failed. The agent's own tool time limit is
+  raised above Home Assistant's, so the message always comes from Home Assistant's side.
+- Stopping the add-on cancels a tool call that is still running, for example a script in the middle of its
+  delay. This corrects the 0.3.4 note below: a script with a delay runs to its end when the agent finishes or
+  disconnects, but not when the add-on itself is stopped or restarted.
+
 ## 0.3.4
 
 - Built on ha-agent-core 0.11.5 ([release notes](https://github.com/LayerTM/ha-agent-core/releases/tag/v0.11.5)):

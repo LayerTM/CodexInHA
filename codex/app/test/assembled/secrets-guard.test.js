@@ -20,7 +20,7 @@ const os = require('node:os');
 const path = require('node:path');
 const { spawnSync } = require('node:child_process');
 
-const ADDON = path.join(__dirname, '..', '..');
+const ADDON = path.join(__dirname, '..', '..', '..');
 const ROOTFS = path.join(ADDON, 'rootfs');
 const LIST = path.join(ROOTFS, 'usr', 'share', 'agent-core', 'protected-paths.txt');
 const HOOK = path.join(ROOTFS, 'usr', 'local', 'bin', 'secrets-guard-hook');
