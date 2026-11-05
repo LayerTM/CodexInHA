@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.3.4
+
+- Built on ha-agent-core 0.11.5 ([release notes](https://github.com/LayerTM/ha-agent-core/releases/tag/v0.11.5)):
+  a Home Assistant action that is still running when the agent finishes or disconnects is no longer cancelled
+  halfway; for example a script with a delay now runs to its end. A request nobody is waiting for is closed
+  after one hour at the latest.
+
 ## 0.3.3
 
 - Built on ha-agent-core 0.11.4 ([release notes](https://github.com/LayerTM/ha-agent-core/releases/tag/v0.11.4)):
