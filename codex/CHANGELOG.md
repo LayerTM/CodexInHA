@@ -13,9 +13,10 @@
 - The console page reloads its stylesheets and scripts by itself, up to five times over about 30 seconds,
   when they do not arrive, and then says the console could not load.
 - The console's menus stay on the screen on a narrow window.
-- Stopping the add-on cancels a tool call that is still running, for example a script in the middle of its
-  delay. This corrects the 0.3.4 note below: a script with a delay runs to its end when the agent finishes or
-  disconnects, but not when the add-on itself is stopped or restarted.
+- A confirmed action or a console service call returns at once or completes in Home Assistant. Stopping or
+  restarting the add-on does not stop a script it started (measured on Home Assistant 2026.10.4). This
+  corrects the 0.3.4 note below: a script with a delay runs to its end whether the agent finishes, disconnects,
+  or the add-on is stopped or restarted.
 
 ## 0.3.4
 
