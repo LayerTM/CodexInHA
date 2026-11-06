@@ -46,9 +46,7 @@ jobs:
             exit 0
           fi
           echo "safe=false" >> "$GITHUB_OUTPUT"
-          gh label create "needs review" --repo "$REPO" --color d93f0b \
-            --description "Needs a human review before merging" 2>/dev/null || true
-          gh pr edit "$PR_URL" --add-label "needs review" || true
+          gh pr edit "$PR_URL" --add-label "needs review"
           echo "::notice::this pull request changes the auto-merge workflow, or its changed files could not be read; it is left for manual review"
         env:
           PR_URL: ${{ github.event.pull_request.html_url }}
