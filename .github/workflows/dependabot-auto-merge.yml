@@ -10,6 +10,12 @@ name: Dependabot auto-merge
 # metadata and enables auto-merge, which then waits for the branch-protection
 # required checks before merging.
 #
+# On this event the workflow definition comes from the pull request's merge
+# commit, so a Dependabot bump of this very file would run its new action pins
+# with the write token before anyone reviews them. The first step therefore
+# stops the job, using no action, when the file is among the changed files or
+# the list cannot be read, and labels the pull request for human review.
+#
 # A merge made with the workflow token raises no push event, so once the pull
 # request has merged this job starts the main-measured workflow, which runs CI
 # for the head of main unless it already has a run. That workflow also has a
@@ -29,8 +35,28 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 45
     steps:
+      - name: Stop when this workflow is edited
+        id: guard
+        # A run step only: nothing from the pull request is executed before it.
+        # Fail closed: an unreadable file list is treated as a self-edit.
+        run: |
+          if files="$(gh api "repos/$REPO/pulls/$PR_NUMBER/files" --paginate --jq '.[].filename')" \
+            && ! printf '%s\n' "$files" | grep -qxF '.github/workflows/dependabot-auto-merge.yml'; then
+            echo "safe=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          echo "safe=false" >> "$GITHUB_OUTPUT"
+          gh pr edit "$PR_URL" --add-label "needs review"
+          echo "::notice::this pull request changes the auto-merge workflow, or its changed files could not be read; it is left for manual review"
+        env:
+          PR_URL: ${{ github.event.pull_request.html_url }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          REPO: ${{ github.repository }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
       - name: Fetch Dependabot metadata
         id: metadata
+        if: ${{ steps.guard.outputs.safe == 'true' }}
         # Pinned to an immutable commit SHA (this job runs with write scope). The version comment lets Dependabot's
         # github-actions updater keep the pin current.
         uses: dependabot/fetch-metadata@25dd0e34f4fe68f24cc83900b1fe3fe149efef98 # v3.1.0
@@ -40,7 +66,7 @@ jobs:
         # Fail-closed allowlist: only explicitly-recognized minor/patch updates
         # auto-merge. Majors — and any PR whose update-type can't be determined —
         # fall through to manual review instead of merging by default.
-        if: ${{ contains(fromJSON('["version-update:semver-minor", "version-update:semver-patch"]'), steps.metadata.outputs.update-type) }}
+        if: ${{ steps.guard.outputs.safe == 'true' && contains(fromJSON('["version-update:semver-minor", "version-update:semver-patch"]'), steps.metadata.outputs.update-type) }}
         run: gh pr merge --auto --squash "$PR_URL"
         env:
           PR_URL: ${{ github.event.pull_request.html_url }}
