@@ -52,6 +52,11 @@ VECTORS: dict[str, list[str]] = {
         "Generated with [Some Tool](https://example.com)",
         "\U0001F916 Generated with a tool",
     ],
+    "curl-retry-without-all-errors": [
+        "curl -fsSL --retry 3 --retry-delay 2 -o /tmp/x https://example.com/x",
+        "    && { curl -fsSL --proto '=https' --retry 3 --retry-delay 2 -o f \\",
+        "curl --retry 5 https://example.com",
+    ],
 }
 
 # Lines that must NOT be reported: ordinary content that resembles a rule.
@@ -67,6 +72,9 @@ CLEAN = [
     "cache lives in /srv/Users/shared/x",   # not a per-machine path
     'mkdir -p "${work}/home/.claude/projects"',  # built from a variable
     'cd "$(mktemp -d)/Users/test/app"',          # likewise
+    "curl -fsSL --retry 3 --retry-all-errors --retry-delay 2 -o f https://x",
+    "curl -fsSL -o f https://example.com/x",              # no retry asked for
+    "the --retry flag of a tool other than the one named",
 ]
 
 
