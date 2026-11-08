@@ -76,6 +76,14 @@ RULES: list[Rule] = [
         re.compile(r"(?im)^[ \t]*co-authored-by[ \t]*:"
                    r"|^[ \t]*(?:\U0001F916[ \t]*)?generated with[ \t]"),
     ),
+    # curl's --retry alone retries only timeouts and HTTP 408/429/5xx; a dropped
+    # connection ("curl: (56) Connection died") is never retried by it, so the
+    # retry silently does nothing exactly when a download is flaky. The flag is
+    # judged per line: every curl in this repository keeps its options on one.
+    Rule(
+        "curl-retry-without-all-errors",
+        re.compile(r"^(?!.*--retry-all-errors).*\bcurl\b.*--retry(?![-\w])"),
+    ),
 ]
 
 # This file and its test contain every pattern literally, so they are skipped by
@@ -92,7 +100,8 @@ SKIP_SUFFIX = {
 
 OWNERSHIP = (
     "hygiene: machine-specific paths, symlinks leaving the repository, "
-    "transcript URLs and attribution trailers.\n"
+    "transcript URLs, attribution trailers and curl retries that miss dropped "
+    "connections.\n"
     "secret-scan: secrets, personal e-mail addresses and non-routable network "
     "addresses. No line is reported by both."
 )
