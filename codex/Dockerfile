@@ -156,6 +156,11 @@ RUN arch="$(dpkg --print-architecture)" \
 # the Home Assistant token is set): entity and service queries against the Core
 # API. Pillow: Python imaging for ad-hoc crops and resizes of dashboard
 # screenshots (ImageMagick covers the command-line side).
+# hass-mcp's wheel also declares a `test = pytest:main` console script (a
+# development entry point, pytest is not a dependency). Installed into
+# /usr/local/bin, it would replace the system `test` for anything that runs
+# it by name, so it is removed here; the build fails if a file of that name
+# is ever something else.
 # upstream: pypi homeassistant-cli
 ARG HASS_CLI_VERSION=1.0.0
 # upstream: pypi hass-mcp
@@ -165,7 +170,10 @@ ARG PILLOW_VERSION=13.0.0
 RUN pip install --no-cache-dir --break-system-packages \
         "homeassistant-cli==${HASS_CLI_VERSION}" \
         "hass-mcp==${HASS_MCP_VERSION}" \
-        "Pillow==${PILLOW_VERSION}"
+        "Pillow==${PILLOW_VERSION}" \
+    && if [ -e /usr/local/bin/test ]; then \
+         grep -qx 'from pytest import main' /usr/local/bin/test && rm /usr/local/bin/test; \
+       fi
 
 # Force HTTPS for GitHub clones (plugin marketplaces) — the container has no SSH key.
 RUN git config --system url."https://github.com/".insteadOf "git@github.com:"
@@ -235,6 +243,20 @@ RUN chmod +x /etc/s6-overlay/s6-rc.d/codex/run \
              /usr/local/bin/ha-backup \
              /usr/local/bin/ha-audit \
              /usr/local/bin/ha-usage
+
+# /usr/local/{bin,sbin} come first on PATH, so a bundled tool's stray entry
+# point named like a system command (a Python package's `test` launcher, say)
+# would replace that command for every program that runs it by name. The image
+# is not built if anything there hides one.
+RUN shadowed="" \
+    && for f in /usr/local/bin/* /usr/local/sbin/*; do \
+         [ -e "${f}" ] || continue; \
+         for d in /usr/sbin /usr/bin /sbin /bin; do \
+           if [ -e "${d}/${f##*/}" ]; then shadowed="${shadowed} ${f}"; break; fi; \
+         done; \
+       done \
+    && if [ -n "${shadowed}" ]; then echo "Shadows a system command:${shadowed}" >&2; exit 1; fi \
+    && env test 1 -eq 1
 
 # Surface console health to the Supervisor. Hits the loopback health endpoint
 # (allowed by the console's IP guard); marks the add-on unhealthy if the Node
