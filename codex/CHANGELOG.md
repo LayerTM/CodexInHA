@@ -7,6 +7,10 @@
   area acts on that device whether it is on or off.
 - When the agent cannot act on a request, the reason is now stated in full instead of being cut short.
 - A long secret no longer starts streaming to the screen before it is hidden.
+- Signing in with an API key did not work before this version: the add-on handed the key to Codex under a
+  name Codex does not read, so every request from Assist, automations and the Prompt API failed with an
+  authentication error. The key is now handed over under the name Codex reads. The console itself is not covered
+  by this: it still needs `codex login` (or `codex login --with-api-key`), as before.
 - Codex CLI 0.167.0, yq 4.54.3 and Playwright MCP 0.0.85.
 
 ## 0.3.5

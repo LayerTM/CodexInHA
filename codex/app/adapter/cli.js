@@ -20,6 +20,10 @@ const CODEX_BIN = path.join(NPM_PREFIX, 'bin', 'codex');
 const CONSOLE_HOME = '/data/codex';
 const PROMPT_HOME = '/data/codex-prompt';
 const PACKAGE = '@openai/codex';
+// The one variable `codex exec` reads an API key from; it ignores OPENAI_API_KEY.
+// The add-on's start-up exports the api_key option under this name, and the
+// adapter reads and hands it on by it (a test holds both to the same word).
+const API_KEY_ENV = 'CODEX_API_KEY';
 
 // Plain semantic versions only, with an optional pre-release: the value ends up
 // in an npm package spec, where a range, tag, URL or path means something else.
@@ -63,6 +67,7 @@ module.exports = {
   CONSOLE_HOME,
   PROMPT_HOME,
   PACKAGE,
+  API_KEY_ENV,
   isVersion,
   parseVersion,
   versionCommand,

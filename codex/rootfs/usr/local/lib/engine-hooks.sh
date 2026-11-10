@@ -102,7 +102,7 @@ engine_auth() {
     api_key=$(bashio::config 'api_key')
 
     if bashio::var.has_value "${api_key}"; then
-        export OPENAI_API_KEY="${api_key}"
+        export CODEX_API_KEY="${api_key}"
         bashio::log.info "OpenAI API key configured"
     fi
 

@@ -35,7 +35,7 @@ case "$2" in
 esac
 `;
 
-function withHooks(body) {
+function withHooks(body, extraEnv = {}) {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'engine-hooks-'));
   try {
     fs.mkdirSync(path.join(dir, 'bin'));
@@ -46,7 +46,7 @@ function withHooks(body) {
     fs.writeFileSync(path.join(dir, 'engine-hooks.sh'), hooks);
     return execFileSync('bash', ['-c', `. '${path.join(dir, 'engine-hooks.sh')}'\nPATH='${path.join(dir, 'bin')}':$PATH\n${body}`], {
       encoding: 'utf8',
-      env: { ...process.env, FAKE_STORE: path.join(dir, 'servers') },
+      env: { ...process.env, FAKE_STORE: path.join(dir, 'servers'), ...extraEnv },
     }).trim();
   } finally {
     fs.rmSync(dir, { recursive: true, force: true });
@@ -64,4 +64,28 @@ test('engine_mcp_remove removes a registered server and leaves the others', () =
 
 test('engine_mcp_remove reports a server that is not registered', () => {
   assert.equal(withHooks('engine_mcp_remove ghost && echo ok || echo failed'), 'failed');
+});
+
+// `codex exec` (every Prompt API run) reads its API key from CODEX_API_KEY only; the
+// add-on used to export OPENAI_API_KEY, which the CLI does not read for model
+// authentication, so the api_key option never signed anything in.
+const authenticated = (apiKey) => withHooks(
+  'bashio::config() { printf %s "$SUPPLIED_OPTION"; }; bashio::var.has_value() { [ -n "$1" ]; };'
+  + ' bashio::log.info() { :; }; bashio::log.notice() { :; }; ENGINE_STATE_DIR=/nonexistent;'
+  + ' engine_auth; printf "%s|%s" "${CODEX_API_KEY-unset}" "${OPENAI_API_KEY-unset}"',
+  { SUPPLIED_OPTION: apiKey },
+);
+
+test('engine_auth exports the api_key option as the variable codex exec reads', () => {
+  assert.equal(authenticated('sk-test-not-a-real-key-0000000000000000'), 'sk-test-not-a-real-key-0000000000000000|unset');
+});
+
+test('engine_auth exports no key when the option is empty', () => {
+  assert.equal(authenticated(''), 'unset|unset');
+});
+
+test('the shell hook and the adapter name the same key variable', () => {
+  const { API_KEY_ENV } = require('../adapter/cli.js');
+  const hook = fs.readFileSync(path.join(LIB, 'engine-hooks.sh'), 'utf8');
+  assert.match(hook, new RegExp(`export ${API_KEY_ENV}=`));
 });

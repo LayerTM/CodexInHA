@@ -16,7 +16,7 @@ Runs the full [Codex CLI](https://github.com/openai/codex) inside Home Assistant
 | Method | How |
 |---|---|
 | **ChatGPT plan (recommended)** | Leave **API Key** empty, open the console, run `codex login` and follow the login URL. The sign-in is stored in `/data/codex` and survives restarts and updates — but OpenAI's server can stop accepting it, for example when it has expired or was revoked. See [When the sign-in stops working](#when-the-sign-in-stops-working). |
-| **API key** | Paste a key from [platform.openai.com](https://platform.openai.com) into **API Key**. Pay-per-use. It needs no renewal from a sign-in, so it suits an app that is asked rarely and must answer unattended. Remote control needs the ChatGPT sign-in. |
+| **API key** | Paste a key from [platform.openai.com](https://platform.openai.com) into **API Key**. Pay-per-use. It needs no renewal from a sign-in, so it suits an app that is asked rarely and must answer unattended. The key is used for requests from Assist, automations and the Prompt API; the console's own session needs a sign-in of its own (`codex login`, or `codex login --with-api-key`). Remote control needs the ChatGPT sign-in. |
 
 ### When the sign-in stops working
 

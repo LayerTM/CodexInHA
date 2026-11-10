@@ -67,7 +67,7 @@ module.exports = {
       };
     },
     authConfigured({ env }) {
-      return Boolean(env.OPENAI_API_KEY) || fs.existsSync(path.join(CONSOLE_HOME, 'auth.json'));
+      return Boolean(env[cli.API_KEY_ENV]) || fs.existsSync(path.join(CONSOLE_HOME, 'auth.json'));
     },
     // The CLI takes its MCP servers on the command line, one setting at a time,
     // so a run's server is registered by launch.js rather than by a file the CLI
@@ -92,14 +92,14 @@ module.exports = {
     },
     credentials({ options, env, optionString }) {
       return {
-        apiKey: optionString(options, 'api_key') || env.OPENAI_API_KEY || '',
+        apiKey: optionString(options, 'api_key') || env[cli.API_KEY_ENV] || '',
         oauthToken: '',
       };
     },
     secretValues({ options, env, optionString }) {
       return {
         options: [optionString(options, 'api_key')],
-        env: [env.OPENAI_API_KEY],
+        env: [env[cli.API_KEY_ENV]],
       };
     },
   },

@@ -68,7 +68,7 @@ function toolBasename(name) {
 // and the proxy settings. A Home Assistant or Supervisor token never appears
 // here; the core builds the rest of the child's environment itself.
 const PASSTHROUGH_ENV = [
-  'OPENAI_API_KEY',
+  cli.API_KEY_ENV,
   'HTTP_PROXY', 'HTTPS_PROXY', 'NO_PROXY',
   'http_proxy', 'https_proxy', 'no_proxy',
 ];
