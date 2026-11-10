@@ -97,6 +97,8 @@ test('the prompt profile carries every restricting switch', () => {
     'web_search="disabled"',
     'check_for_update_on_startup=false',
     'project_doc_max_bytes=0',
+    'skills.bundled.enabled=false',
+    'skills.include_instructions=false',
   ]);
   assert.ok(disabled(argv).includes('shell_tool'));
   assert.equal(argv.at(-1), '-', 'the request text comes from stdin');
@@ -125,6 +127,8 @@ test('a prompt run keeps the sandbox that refuses a write, and every denial with
     'web_search="disabled"',
     'check_for_update_on_startup=false',
     'project_doc_max_bytes=0',
+    'skills.bundled.enabled=false',
+    'skills.include_instructions=false',
   ]);
   const off = disabled(argv);
   // A feature the CLI has removed, or a deprecated one already off by default,
@@ -168,7 +172,7 @@ test('a prompt run without a schema is refused before it starts', () => {
 
 test('the Home Assistant server is registered with the token only in the environment', () => {
   const { argv, env } = launch({ ha: { ...HA, tools: ['HassTurnOn', 'GetLiveContext', 'HassTurnOn'] } });
-  assert.deepEqual(configs(argv).slice(4), [
+  assert.deepEqual(configs(argv).filter((c) => c.startsWith('mcp_servers.')), [
     'mcp_servers.ha.url="http://127.0.0.1:8099/mcp"',
     'mcp_servers.ha.bearer_token_env_var="CODEX_HA_MCP_TOKEN"',
     'mcp_servers.ha.default_tools_approval_mode="approve"',

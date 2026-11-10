@@ -11,6 +11,11 @@
   name Codex does not read, so every request from Assist, automations and the Prompt API failed with an
   authentication error. The key is now handed over under the name Codex reads. The console itself is not covered
   by this: it still needs `codex login` (or `codex login --with-api-key`), as before.
+- Requests from Assist, automations and the Prompt API no longer see Codex's own built-in skills. Before this
+  version every such request carried a list of the available skills, and a `$name` in the request text (such
+  as `$imagegen`) put that skill's full instructions into the request. The console is unchanged and keeps
+  every skill. Known limit: a skill installed under `/data/home/.agents/skills` is still put into such a
+  request when the request text names it with `$name`; a later version closes this.
 - Codex CLI 0.167.0, yq 4.54.3 and Playwright MCP 0.0.85.
 
 ## 0.3.5
