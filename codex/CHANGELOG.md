@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.3.6
+
+- Built on ha-agent-core 0.12.1 ([release notes](https://github.com/LayerTM/ha-agent-core/releases/tag/v0.12.1)).
+- A device assigned to an area is no longer refused as ambiguous when it is off: asking for the light in an
+  area acts on that device whether it is on or off.
+- When the agent cannot act on a request, the reason is now stated in full instead of being cut short.
+- A long secret no longer starts streaming to the screen before it is hidden.
+- Codex CLI 0.167.0, yq 4.54.3 and Playwright MCP 0.0.85.
+
 ## 0.3.5
 
 - Built on ha-agent-core 0.12.0 ([release notes](https://github.com/LayerTM/ha-agent-core/releases/tag/v0.12.0)).
