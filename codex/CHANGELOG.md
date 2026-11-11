@@ -1,5 +1,30 @@
 # Changelog
 
+## 0.3.6
+
+- Built on ha-agent-core 0.13.1 ([release notes](https://github.com/LayerTM/ha-agent-core/releases/tag/v0.13.1)).
+- An answer from Assist, automations and the Prompt API is returned as soon as Codex reports its result, no
+  longer after the Codex process has finished shutting down; anything Codex writes after its result is dropped.
+- The core's warm-session option is not offered by this add-on: every request still starts a fresh Codex
+  process, as before.
+- A device assigned to an area is no longer refused as ambiguous when it is off: asking for the light in an
+  area acts on that device whether it is on or off.
+- When the agent cannot act on a request, the reason is now stated in full instead of being cut short.
+- A long secret no longer starts streaming to the screen before it is hidden.
+- Signing in with an API key did not work before this version: the add-on handed the key to Codex under a
+  name Codex does not read, so every request from Assist, automations and the Prompt API failed with an
+  authentication error. The key is now handed over under the name Codex reads. The console itself is not covered
+  by this: it still needs `codex login` (or `codex login --with-api-key`), as before.
+- Requests from Assist, automations and the Prompt API no longer see Codex's own built-in skills. Before this
+  version every such request carried a list of the available skills, and a `$name` in the request text (such
+  as `$imagegen`) put that skill's full instructions into the request. The console is unchanged and keeps
+  every skill. Known limit: a skill installed under `/data/home/.agents/skills` is still put into such a
+  request when the request text names it with `$name`; a later version closes this.
+- A program that runs the `test` command by name gets the system one again. The bundled hass-mcp package
+  installed a development launcher under that name ahead of it on the path; the launcher is no longer
+  installed, and the image is not built if a bundled command hides a system command.
+- Codex CLI 0.167.1, yq 4.54.3 and Playwright MCP 0.0.85.
+
 ## 0.3.5
 
 - Built on ha-agent-core 0.12.0 ([release notes](https://github.com/LayerTM/ha-agent-core/releases/tag/v0.12.0)).

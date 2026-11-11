@@ -189,6 +189,15 @@ function restrictedArgv(features, workDir) {
     '-c', 'web_search="disabled"',
     '-c', 'check_for_update_on_startup=false',
     '-c', 'project_doc_max_bytes=0',
+    // --ignore-user-config empties the user configuration but keeps its layer,
+    // and skills are found through that layer, not through its settings: the
+    // CLI's own bundled skills and any skill under $HOME/.agents/skills are
+    // still listed to the model in every run, and a `$name` anywhere in the
+    // request text pastes that skill's whole SKILL.md into the conversation
+    // (CLI 0.167.0). These two switches remove the bundled skills and the list;
+    // a skill under the HOME the run inherits is not reached by any switch.
+    '-c', 'skills.bundled.enabled=false',
+    '-c', 'skills.include_instructions=false',
     ...promptFeatureArgs(features),
     '--cd', checkAbsolute('work directory', workDir),
   ];
