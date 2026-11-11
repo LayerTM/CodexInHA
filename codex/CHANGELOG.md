@@ -23,7 +23,7 @@
 - A program that runs the `test` command by name gets the system one again. The bundled hass-mcp package
   installed a development launcher under that name ahead of it on the path; the launcher is no longer
   installed, and the image is not built if a bundled command hides a system command.
-- Codex CLI 0.167.1, yq 4.54.3 and Playwright MCP 0.0.85.
+- Node.js 26.13.1, Codex CLI 0.167.1, yq 4.54.3 and Playwright MCP 0.0.85.
 
 ## 0.3.5
 
