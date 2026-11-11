@@ -2,7 +2,11 @@
 
 ## 0.3.6
 
-- Built on ha-agent-core 0.12.1 ([release notes](https://github.com/LayerTM/ha-agent-core/releases/tag/v0.12.1)).
+- Built on ha-agent-core 0.13.1 ([release notes](https://github.com/LayerTM/ha-agent-core/releases/tag/v0.13.1)).
+- An answer from Assist, automations and the Prompt API is returned as soon as Codex reports its result, no
+  longer after the Codex process has finished shutting down; anything Codex writes after its result is dropped.
+- The core's warm-session option is not offered by this add-on: every request still starts a fresh Codex
+  process, as before.
 - A device assigned to an area is no longer refused as ambiguous when it is off: asking for the light in an
   area acts on that device whether it is on or off.
 - When the agent cannot act on a request, the reason is now stated in full instead of being cut short.
@@ -19,7 +23,7 @@
 - A program that runs the `test` command by name gets the system one again. The bundled hass-mcp package
   installed a development launcher under that name ahead of it on the path; the launcher is no longer
   installed, and the image is not built if a bundled command hides a system command.
-- Codex CLI 0.167.0, yq 4.54.3 and Playwright MCP 0.0.85.
+- Codex CLI 0.167.1, yq 4.54.3 and Playwright MCP 0.0.85.
 
 ## 0.3.5
 
