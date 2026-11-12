@@ -204,7 +204,12 @@ envv() { jq -r --arg k "$1" 'if has($k) then .[$k] else "<unset>" end' "${P}/con
 persistent_version() { /data/npm/bin/codex --version 2>/dev/null | awk '{print $2}'; }
 # Every call of the stand-in except the version probes the launchers make.
 codex_calls() { cut -d'|' -f4- "${P}/codex.log" 2>/dev/null | grep -v -- '^--version' | sed 's/ $//'; }
-launch_args() { jq -c . "${P}/codex-args.jsonl" 2>/dev/null | grep -v '^\["--version"\]$' | head -1; }
+# The console's launch: every call except the version probes and the background
+# service match that the launcher makes before it (codex-daemon.sh).
+launch_args() {
+    jq -c . "${P}/codex-args.jsonl" 2>/dev/null \
+        | grep -v -e '^\["--version"\]$' -e '^\["app-server","daemon","update","--from-cli","--yes"\]$' | head -1
+}
 
 # The container environment s6 keeps for its services. with-contenv starts the
 # service with exactly these (and PATH), so PINS_NOT_CONTENV below must not
@@ -366,6 +371,9 @@ start_codex
 eq "bypass on: the bypass flag, the model, then extra_args" "$(launch_args)" \
     '["--dangerously-bypass-approvals-and-sandbox","--model","pins-model","--search","x y"]'
 eq "launched in /homeassistant when it is there" "$(first_cwd)" /homeassistant
+eq "the background service is matched to the CLI before the launch" \
+    "$(codex_calls | head -2 | awk 'NR == 1 {print; next} {print $1}' | tr '\n' ';')" \
+    "app-server daemon update --from-cli --yes;--dangerously-bypass-approvals-and-sandbox;"
 yes_ "the exit menu names the version" grep -q "Codex exited. \[Codex CLI ${IMG}\]" "${P}/start.out"
 
 reset
