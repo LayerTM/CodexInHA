@@ -18,6 +18,11 @@
 #
 # The CLI version it was last matched to is kept in CODEX_DAEMON_PINNED, so the
 # copy happens once per version change, not at every console start.
+#
+# The copy is the CLI's whole package (about 350 MB). Measured on CLI 0.167.2 on
+# an aarch64 Home Assistant OS VM with SSD storage: about 2 s for the first copy
+# and about 2 s for a re-pin. The two-minute limit leaves room for SD-card storage
+# many times slower, and is also the most a hung CLI can delay a console start.
 
 # Callers source codex-env.sh first (it names CODEX_DAEMON_PINNED and puts the
 # CLI on PATH).
@@ -28,7 +33,7 @@ pin_codex_daemon() {
     [ -n "${cli}" ] || return 0
     pinned=$(cat "${CODEX_DAEMON_PINNED}" 2>/dev/null)
     [ "${pinned}" = "${cli}" ] && return 0
-    if out=$(timeout 300 codex app-server daemon update --from-cli --yes 2>&1 </dev/null); then
+    if out=$(timeout 120 codex app-server daemon update --from-cli --yes 2>&1 </dev/null); then
         printf '%s\n' "${cli}" > "${CODEX_DAEMON_PINNED}"
         echo "Codex background service: matched to Codex CLI ${cli}"
         return 0
