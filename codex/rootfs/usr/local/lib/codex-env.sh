@@ -22,6 +22,8 @@ CODEX_CLI_PREFIX=/data/npm
 CODEX_CLI_BIN=${CODEX_CLI_PREFIX}/bin
 CODEX_STATE_DIR=/data/codex
 CODEX_PROMPT_HOME=/data/codex-prompt
+# The CLI version the background service was last matched to (codex-daemon.sh).
+CODEX_DAEMON_PINNED=${CODEX_STATE_DIR}/.addon-daemon-pinned
 
 export CODEX_HOME=${CODEX_STATE_DIR}
 export NPM_CONFIG_PREFIX=${CODEX_CLI_PREFIX}

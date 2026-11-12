@@ -78,3 +78,62 @@ test('a run launched without a key carries none, and a variable the CLI ignores 
     assert.ok(!(name in env), `${name} is absent`);
   }
 });
+
+// Which sign-in a refusal names: the launch knows what it handed over, and the
+// decoder for the same spec reports it, so the person is told to fix that one.
+const REFUSED = [
+  { type: 'thread.started', thread_id: 'X' },
+  { type: 'turn.started' },
+  { type: 'turn.failed', error: { message: 'unexpected status 401 Unauthorized: Incorrect API key provided' } },
+];
+const decodeAll = (s, list) => list.flatMap((ev) => runnerDecode(s)(ev));
+const decoders = new WeakMap();
+const runnerDecode = (s) => {
+  if (!decoders.has(s)) decoders.set(s, runner.createDecoder(s));
+  return decoders.get(s);
+};
+const resultOf = (s, list) => decodeAll(s, list).filter((ev) => ev.type === 'result')[0];
+
+test('a refusal of a run launched with the api_key names the add-on\'s key', () => {
+  const s = spec();
+  runner.launch(s, { env: { CODEX_API_KEY: KEY } });
+  const result = resultOf(s, REFUSED);
+  assert.equal(result.authExpired, true);
+  assert.equal(result.credential, 'durable');
+});
+
+test('a refusal of a run launched without a key names the console sign-in', () => {
+  const s = spec();
+  runner.launch(s, { env: { OPENAI_API_KEY: KEY } });
+  const result = resultOf(s, REFUSED);
+  assert.equal(result.authExpired, true);
+  assert.equal(result.credential, 'login');
+});
+
+test('a decoder for a spec that was never launched names no credential', () => {
+  const result = resultOf(spec(), REFUSED);
+  assert.equal(result.authExpired, true);
+  assert.ok(!('credential' in result));
+});
+
+test('every run gets an empty HOME of its own, never the console\'s', () => {
+  const first = runner.launch(spec(), { env: {} });
+  const second = runner.launch(spec(), { env: {} });
+  for (const { home } of [first, second]) {
+    assert.ok(path.isAbsolute(home), home);
+    assert.ok(fs.statSync(home).isDirectory(), home);
+    assert.deepEqual(fs.readdirSync(home), []);
+    assert.notEqual(home, os.homedir());
+  }
+  assert.notEqual(first.home, second.home);
+  // The sign-in is read from CODEX_HOME, which the run still names.
+  assert.equal(first.env.CODEX_HOME, cli.PROMPT_HOME);
+});
+
+test('a failure that is not a refused sign-in carries no credential', () => {
+  const s = spec();
+  runner.launch(s, { env: { CODEX_API_KEY: KEY } });
+  const result = resultOf(s, [{ type: 'turn.failed', error: { message: 'overloaded' } }]);
+  assert.ok(!('authExpired' in result));
+  assert.ok(!('credential' in result));
+});
