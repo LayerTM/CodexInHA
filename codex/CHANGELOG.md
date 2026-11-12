@@ -1,5 +1,31 @@
 # Changelog
 
+## 0.3.7
+
+- Built on ha-agent-core 0.14.0 ([release notes](https://github.com/LayerTM/ha-agent-core/releases/tag/v0.14.0)).
+- Codex CLI 0.167.2.
+- A skill installed from the console (under `/data/home/.agents/skills`) no longer reaches requests from Assist,
+  automations and the Prompt API, even when the request names it with `$name`: each such request runs with an
+  empty home directory of its own. This closes the known limit stated for 0.3.6. The console keeps every skill.
+- When Codex refuses a request's sign-in, the add-on now says which one was refused: the API key set in the
+  add-on's options, or the console's ChatGPT sign-in. Home Assistant can then advise checking or replacing the key
+  instead of suggesting to set one.
+- The health check and the morning briefing ask Codex their question the same way: in an empty home of its own,
+  and with none of the Supervisor or Home Assistant credentials and addresses in its environment. Before this
+  version the question ran in the console's home and saw the Home Assistant addresses.
+- Codex's background service now runs the same version as the Codex CLI the add-on installed. Before this
+  version the service kept its own copy of the CLI and updated it on its own schedule, so after an update the
+  console showed "A background Codex service is running …, older than your Codex CLI …", and after a rollback
+  the service stayed on the newer version. The first console start after the CLI version changes (the update
+  button, Auto-Update, `update-codex <version>`, or `npm install` / `codex update` in a shell tab) now gives the
+  service the installed CLI and keeps it there. Requests from Assist, automations and the Prompt API do not use
+  this service.
+- When the stored Codex CLI cannot run, the add-on's start now logs "Could not determine the Codex CLI version
+  for the image sync" and carries on, as intended. Before this version reading the CLI's version ended the start.
+- Every pull request now builds the add-on image for each architecture and checks that the bundled Codex CLI
+  runs, accepts each command line the Prompt API builds, and that start-up, the console launcher, both update
+  paths, provisioning, the secrets guard, the health check and the morning digest behave as recorded.
+
 ## 0.3.6
 
 - Built on ha-agent-core 0.13.1 ([release notes](https://github.com/LayerTM/ha-agent-core/releases/tag/v0.13.1)).
