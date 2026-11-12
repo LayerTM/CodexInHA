@@ -528,9 +528,37 @@ EOF
     printf '#!/bin/bash\nprintf "%%s\\n" "$1|$2" >> /pins/notify.log\n' > "${bin}/notify"
     chmod +x "${bin}/curl" "${bin}/check" "${bin}/notify"
 }
-# The loops' own environment when addon-run starts them, credentials included.
-loop_env=(env -i PATH="${BASE_PATH}" HOME=/root SUPERVISOR_TOKEN=EXAMPLE-sup
-    HA_TOKEN=EXAMPLE-ha HASS_TOKEN=EXAMPLE-ha)
+# The names the core never lets reach an engine child (the Supervisor and Home
+# Assistant credentials and addresses), read from the core this image ships:
+# its own FORBIDDEN_ENV in server/prompt/run.js, evaluated in that module, so
+# this file never types the list and cannot fall behind it. If the core renames
+# or drops the set, reading it fails and so does every check below.
+core_forbidden_env() {
+    node -e '
+const Module = require("node:module");
+const file = "/opt/agent-console/server/prompt/run.js";
+const m = new Module(file, null);
+m.filename = file;
+m.paths = Module._nodeModulePaths(require("node:path").dirname(file));
+m._compile(`${require("node:fs").readFileSync(file, "utf8")}\nmodule.exports.__forbiddenEnv = [...FORBIDDEN_ENV];`, file);
+const names = m.exports.__forbiddenEnv;
+if (!Array.isArray(names) || names.length === 0) process.exit(1);
+process.stdout.write(names.join("\n") + "\n");'
+}
+forbidden_env=()
+while IFS= read -r name; do forbidden_env+=("${name}"); done < <(core_forbidden_env)
+yes_ "the core's list of names kept from engine children was read" test "${#forbidden_env[@]}" -gt 0
+# The loops' own environment when addon-run starts them: every one of those names set.
+loop_env=(env -i PATH="${BASE_PATH}" HOME=/root)
+for name in "${forbidden_env[@]}"; do loop_env+=("${name}=EXAMPLE-${name}"); done
+# The names of the core's list that reached the CLI, from the recorded environment.
+leaked_env() {
+    local name leaked=""
+    for name in "${forbidden_env[@]}"; do
+        if grep -qE "(^|,)${name}(,|\$)" "${P}/codex-env.log"; then leaked="${leaked}${name} "; fi
+    done
+    printf '%s' "${leaked}"
+}
 run_digest() {
     "${loop_env[@]}" CC_DIGEST_CURL=/pins/bin/curl CC_DIGEST_NOTIFY_CMD=/pins/bin/notify \
         timeout 120 /usr/local/bin/cc-digest --once > /dev/null 2> "${P}/digest.err" < /dev/null
@@ -578,12 +606,12 @@ run_digest
 eq "digest: states are fetched from the Supervisor, no credential in argv" "$(head -1 "${P}/curl.log")" \
     "-K - -sS http://supervisor/core/api/states "
 eq "digest: the Supervisor bearer travels on stdin, not argv" "$(cat "${P}/curl-stdin.log")" \
-    'header = "Authorization: Bearer EXAMPLE-sup"'
+    'header = "Authorization: Bearer EXAMPLE-SUPERVISOR_TOKEN"'
 eq "digest: Codex is called with the restricted one-shot profile" "$(ask_shape)" "${ASK_SHAPE}"
 yes_ "digest: the prompt goes in on stdin and carries the snapshot as data" \
     bash -c 'grep -q "====HOME SNAPSHOT====" /pins/codex-stdin.txt && grep -q "Pins Weather" /pins/codex-stdin.txt'
 yes_ "digest: the CLI's environment was recorded" test -s "${P}/codex-env.log"
-no_ "digest: no Supervisor or HA credential in the CLI's environment" grep -qE '(^|,)(SUPERVISOR_TOKEN|HA_TOKEN|HASS_TOKEN)(,|$)' "${P}/codex-env.log"
+eq "digest: none of the core's kept-back names in the CLI's environment" "$(leaked_env)" ""
 eq "digest: the answer is pushed with its title" "$(cat "${P}/notify.log")" "Good morning from the pins|Codex · Morning briefing"
 
 reset
@@ -601,7 +629,7 @@ run_monitor
 eq "monitor: Codex is called with the restricted one-shot profile" "$(ask_shape)" "${ASK_SHAPE}"
 yes_ "monitor: the prompt goes in on stdin and carries the log as data" grep -q PINS-LOG-MARK "${P}/codex-stdin.txt"
 yes_ "monitor: the CLI's environment was recorded" test -s "${P}/codex-env.log"
-no_ "monitor: no Supervisor or HA credential in the CLI's environment" grep -qE '(^|,)(SUPERVISOR_TOKEN|HA_TOKEN|HASS_TOKEN)(,|$)' "${P}/codex-env.log"
+eq "monitor: none of the core's kept-back names in the CLI's environment" "$(leaked_env)" ""
 eq "monitor: a finding is pushed with its title" "$(cat "${P}/notify.log")" "Good morning from the pins|Codex · HA health check"
 
 # --- 6. a prompt API run is not counted twice ----------------------------------------
