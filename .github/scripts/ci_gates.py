@@ -32,6 +32,8 @@ import yaml
 
 DEFAULT = pathlib.Path(__file__).resolve().parents[2] / ".github/workflows/ci.yml"
 RELEASE = "release"
+# One `docker run` command, with the lines it continues onto.
+DOCKER_RUN = re.compile(r"^[ \t]*docker run\b(?:.*\\\n)*.*", re.MULTILINE)
 
 
 # One curl invocation, ending at the next shell separator or the end of the
@@ -90,6 +92,12 @@ def check(path: pathlib.Path) -> list[str]:
     gates = set(jobs) - {RELEASE}
 
     complaints = []
+    # The service script talks to `homeassistant` on purpose, and that name can
+    # resolve to a real home where this runs; a token check from a test would be a
+    # failed login there.
+    for command in DOCKER_RUN.findall(path.read_text(encoding="utf-8")):
+        if "--network none" not in command:
+            complaints.append(f"a step runs an image with a network: {command.strip().splitlines()[0]}")
     for job in sorted(gates - waits_for):
         complaints.append(
             f"job '{job}' is a gate the '{RELEASE}' job does not wait for — "
