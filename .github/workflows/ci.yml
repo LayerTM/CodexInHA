@@ -315,9 +315,12 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ github.token }}
         run: |
+          # Drift is what the check printed as "behind", not its exit status
+          # alone: a crash exits 1 too.
+          set -o pipefail
           status=0
-          python .github/scripts/pins.py check || status=$?
-          python .github/scripts/pins_drift.py verdict "${status}"
+          python .github/scripts/pins.py check | tee "${RUNNER_TEMP}/pins-check.txt" || status=$?
+          python .github/scripts/pins_drift.py verdict "${status}" "${RUNNER_TEMP}/pins-check.txt"
 
   # The pull request for drift that main recorded: one branch, pins/bump, kept
   # at exactly what `pins.py bump` writes on top of main, and CI started on it
@@ -332,16 +335,20 @@ jobs:
       actions: write
       contents: write
       pull-requests: write
-    # Two runs of main never write the branch at once; a run with nothing to
-    # move (every pull request) is in a group of its own and waits for nobody.
-    concurrency:
-      group: ${{ needs.pins.outputs.drift == 'true' && 'pins-bump' || format('pins-bump-{0}', github.run_id) }}
+    # No concurrency group: a queued run would be cancelled, not green. Two runs
+    # of main writing the branch at once are settled by the push itself (a
+    # lease on what was read, read again when it moved), and a run of an older
+    # main never rewinds a branch built on a newer one.
     steps:
       - name: Nothing to move
         if: needs.pins.outputs.drift != 'true'
         run: echo "No pin is behind on this run."
       - uses: actions/checkout@v7
         if: needs.pins.outputs.drift == 'true'
+        with:
+          # Which commits on the branch are not main's is a question about
+          # history; a shallow clone would count main's own as a person's.
+          fetch-depth: 0
       - uses: actions/setup-python@v7
         if: needs.pins.outputs.drift == 'true'
         with:
