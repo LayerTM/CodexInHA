@@ -190,7 +190,7 @@ npm install -g <package-name>
 pip install --break-system-packages <package-name>
 ```
 
-From Home Assistant Supervisor 2026.12 (new installs; all installs by 2027.05) add-ons no longer get the `NET_RAW` capability, so tools that need raw or packet sockets (nmap, tcpdump, arping, traceroute in raw mode) fail; use TCP-level tools instead (curl, the Home Assistant API).
+From Home Assistant Supervisor 2026.12 (new installs; all installs by 2027.05) apps no longer get the `NET_RAW` capability, so tools that need raw or packet sockets (nmap, tcpdump, arping, traceroute in raw mode) fail; use TCP-level tools instead (curl, the Home Assistant API).
 
 ---
 
