@@ -16,6 +16,8 @@ source /usr/local/lib/addon-config.sh
 # declares them, and a shell tab gets the same ones through /etc/profile.d.
 # shellcheck source=../lib/codex-env.sh
 source /usr/local/lib/codex-env.sh
+# shellcheck source=../lib/codex-daemon.sh
+source /usr/local/lib/codex-daemon.sh
 
 # Working directory: the Home Assistant configuration when it is there, the
 # add-on's own storage otherwise.
@@ -52,6 +54,9 @@ build_default_args() {
 }
 
 run_codex() {
+    # Every start, because the CLI may have changed since the last one: the
+    # update button, Auto-Update, or `npm install` / `codex update` in a tab.
+    pin_codex_daemon
     local launch_command
     launch_command=$(bashio::config 'launch_command')
     if bashio::var.has_value "${launch_command}"; then
