@@ -1,6 +1,8 @@
 #!/usr/bin/env node
 // Hands the prompt runs' real argument lists to a Codex CLI and asserts that the
-// CLI accepts every one of them.
+// CLI PARSES every one of them, and that each list has the shape its run mode
+// depends on. Parsing is not working: it proves no flag, configuration key or
+// feature name was dropped or renamed, not that a run would answer a question.
 //
 // Runs inside the built add-on image, so all three sides are what ships: the run
 // spec from the image's core, the command line from the image's Codex adapter
@@ -14,7 +16,7 @@
 // configuration the -c overrides and --disable switches build (an unknown
 // configuration key, a bad value or an unknown feature name exits 1 with its
 // own message), and only then reads the prompt and refuses to go on with none.
-// So the one outcome that proves the whole list was accepted is that refusal —
+// So the one outcome that proves the whole list was parsed is that refusal —
 // exit 1 and "No prompt provided via stdin." — and anything else, including a
 // run that starts and waits for the network, fails.
 //
@@ -62,13 +64,48 @@ const buildAskArgs = (options) => {
   return launch.askLaunch({ features: runner.features(), workDir, ...options }).argv;
 };
 
-// Every branch of the builders at least once: with and without the Home
-// Assistant MCP server, a model, an image, the web run, and the one-shot
-// question with and without a model.
+// The shape every list has, whatever the mode: the non-interactive command with
+// JSON events, a throwaway session, no repository requirement, nothing of the
+// user's configuration, the read-only sandbox, a working directory of its own and
+// the request on stdin. A list that parses but loses one of these would run
+// unrestricted or never produce events the core reads.
+function shapeProblems(args, want) {
+  const problems = [];
+  const has = (flag) => args.includes(flag);
+  const value = (flag) => (has(flag) ? args[args.indexOf(flag) + 1] : undefined);
+  if (args[0] !== 'exec') problems.push(`the first argument is ${JSON.stringify(args[0])}, not exec`);
+  for (const flag of ['--json', '--ephemeral', '--skip-git-repo-check', '--ignore-user-config', '--ignore-rules', '--strict-config']) {
+    if (!has(flag)) problems.push(`${flag} is missing`);
+  }
+  if (value('--sandbox') !== 'read-only') problems.push(`--sandbox is ${JSON.stringify(value('--sandbox'))}, not read-only`);
+  if (has('--dangerously-bypass-approvals-and-sandbox')) problems.push('the bypass flag is present');
+  if (!args.includes('approval_policy="never"')) problems.push('approval_policy="never" is missing');
+  const cd = value('--cd');
+  if (!cd || !path.isAbsolute(cd)) problems.push(`--cd is ${JSON.stringify(cd)}, not an absolute directory`);
+  if (args[args.length - 1] !== '-') problems.push('the request is not read from stdin (no trailing -)');
+  if (!args.includes('--disable')) problems.push('no feature is switched off');
+  const schema = has('--output-schema');
+  if (schema !== want.schema) problems.push(`--output-schema ${schema ? 'present' : 'absent'}, expected ${want.schema ? 'present' : 'absent'}`);
+  const model = has('--model');
+  if (model !== want.model) problems.push(`--model ${model ? 'present' : 'absent'}, expected ${want.model ? 'present' : 'absent'}`);
+  const image = has('--image');
+  if (image !== want.image) problems.push(`--image ${image ? 'present' : 'absent'}, expected ${want.image ? 'present' : 'absent'}`);
+  const mcp = args.some((a) => a.startsWith('mcp_servers.'));
+  if (mcp !== want.mcp) problems.push(`the MCP server is ${mcp ? 'registered' : 'absent'}, expected ${want.mcp ? 'registered' : 'absent'}`);
+  return problems;
+}
+
+// Every run mode the adapter builds, and every branch of its builders, at least
+// once: the read run (the core builds no other; its write path is the
+// proposal the user confirms, which never reaches the CLI), with and without the
+// Home Assistant MCP server, a model, an image, the web run, and the one-shot
+// question of the health check and the morning briefing with and without a model.
+const RUN = { schema: true, model: false, image: false, mcp: false };
+const ASK = { schema: false, model: false, image: false, mcp: false };
 const cases = {
-  'read, no MCP server': () => buildRunArgs({}),
-  'read, MCP server': () => buildRunArgs({ mcpConfigPath, haTools: ['homeassistant__GetLiveContext'] }),
-  'read, everything on': () => buildRunArgs({
+  'read, no MCP server': [() => buildRunArgs({}), RUN],
+  'read, MCP server': [() => buildRunArgs({ mcpConfigPath, haTools: ['homeassistant__GetLiveContext'] }), { ...RUN, mcp: true }],
+  'read, everything on': [() => buildRunArgs({
     mcpConfigPath,
     imagePath: path.join(home, 'snap.jpg'),
     model: 'gpt-5',
@@ -77,20 +114,27 @@ const cases = {
     editAutomation: { alias: 'a', triggers: [], actions: [] },
     haTools: ['homeassistant__GetLiveContext', 'intent__HassTurnOn'],
     stream: true,
-  }),
-  'web run': () => buildRunArgs({ web: { search: true, fetch: false, domains: [] }, model: 'gpt-5' }),
-  'one-shot question': () => buildAskArgs({}),
-  'one-shot question with a model': () => buildAskArgs({ model: 'gpt-5' }),
+  }), { schema: true, model: true, image: true, mcp: true }],
+  'web run': [() => buildRunArgs({ web: { search: true, fetch: false, domains: [] }, model: 'gpt-5' }), { ...RUN, model: true }],
+  'one-shot question': [() => buildAskArgs({}), ASK],
+  'one-shot question with a model': [() => buildAskArgs({ model: 'gpt-5' }), { ...ASK, model: true }],
 };
 
 let failed = 0;
-for (const [label, build] of Object.entries(cases)) {
+for (const [label, [build, want]] of Object.entries(cases)) {
   let args;
   try {
     args = build();
   } catch (err) {
     failed += 1;
     console.log(`NOT ok - ${label}: the argument list could not be built: ${err.message}`);
+    continue;
+  }
+  const problems = shapeProblems(args, want);
+  if (problems.length > 0) {
+    failed += 1;
+    console.log(`NOT ok - ${label}: the argument list has the wrong shape`);
+    for (const problem of problems) console.log(`         ${problem}`);
     continue;
   }
   const run = spawnSync(bin, args, {
@@ -102,7 +146,7 @@ for (const [label, build] of Object.entries(cases)) {
   });
   const output = `${run.stderr || ''}${run.stdout || ''}`.trim();
   if (run.status === 1 && output.includes(NO_INPUT)) {
-    console.log(`ok     - ${label}`);
+    console.log(`ok     - ${label} (parses, shape as expected)`);
   } else {
     failed += 1;
     console.log(`NOT ok - ${label}: exit ${run.status}${run.error ? ` (${run.error.message})` : ''}`);
@@ -115,4 +159,4 @@ if (failed) {
   console.log(`${failed} argument list(s) rejected by ${bin}`);
   process.exit(1);
 }
-console.log(`every argument list accepted by ${bin}`);
+console.log(`every argument list parses with ${bin}`);

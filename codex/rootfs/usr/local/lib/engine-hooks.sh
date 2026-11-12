@@ -30,7 +30,7 @@ ENGINE_SKILLS_DIR=${CODEX_STATE_DIR}/skills
 ENGINE_PROMPT_HOME=${CODEX_PROMPT_HOME}
 
 codex_version() {
-    "$1" --version 2>/dev/null | awk '/^codex-cli /{print $2}'
+    { "$1" --version 2>/dev/null || true; } | awk '/^codex-cli /{print $2}'
 }
 
 # --- Persistent CLI ---

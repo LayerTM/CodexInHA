@@ -446,7 +446,7 @@ jobs:
           docker run --rm --network none --platform '${{ steps.target.outputs.platform }}' \
             --entrypoint /usr/local/bin/node 'addon-image:${{ matrix.arch }}' \
             -e "require('/opt/agent-console/node_modules/node-pty').spawn('/bin/true', [], {}).onExit(({ exitCode }) => { console.log('node-pty spawns, exit ' + exitCode); process.exit(exitCode); })"
-      - name: The bundled CLI accepts every argument list the prompt runner builds
+      - name: The bundled CLI parses every argument list the prompt runner builds
         run: |
           # The lists come from the core and the adapter inside the image, not
           # from a copy, so a CLI bump that drops or renames a flag or a feature
