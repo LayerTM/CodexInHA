@@ -45,6 +45,14 @@ const live = new Set();
 // finished with takes its entry with it.
 const runDirs = new WeakMap();
 
+// Which credential a run signs in with, by spec, for the same reason: the core
+// asks the decoder about a refusal, and only the launch knows what was handed
+// over. `durable` is the add-on's API key option — when CODEX_API_KEY is set the
+// CLI signs in with it and not with the console's stored login (measured on CLI
+// 0.167.1, 2026-11-11: a wrong key was refused even with a valid login present).
+// `login` is the console's ChatGPT sign-in.
+const runCredentials = new WeakMap();
+
 // A Home Assistant tool as the core names it. The CLI reports an MCP call with
 // the server and the tool apart, so the name the core sees is composed here and
 // taken apart again here; nothing else in the core knows the shape.
@@ -282,6 +290,7 @@ function launchRun(spec, { env }) {
   for (const key of PASSTHROUGH_ENV) {
     if (env[key]) extra[key] = env[key];
   }
+  runCredentials.set(spec, extra[cli.API_KEY_ENV] ? 'durable' : 'login');
   return { args, env: extra };
 }
 
@@ -332,6 +341,9 @@ function createDecoder(spec) {
   // and the same request would try it again, so it is not re-run.
   // `authExpired` tells it the server refused the sign-in (events.js decides);
   // the core reports that as its own reason and does not retry it either.
+  // `credential` says which sign-in was refused, so the person is told to fix
+  // that one; a decoder for a spec this adapter never launched says nothing.
+  const credential = runCredentials.get(spec);
   const failure = (message, reason, authExpired) => {
     done = true;
     finish();
@@ -339,7 +351,7 @@ function createDecoder(spec) {
       type: 'result',
       isError: true,
       deterministic: reason === 'policy',
-      ...(authExpired ? { authExpired: true } : {}),
+      ...(authExpired ? { authExpired: true, ...(credential ? { credential } : {}) } : {}),
       structured: undefined,
       text: message,
       numTurns: null,
