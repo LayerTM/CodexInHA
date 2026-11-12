@@ -25,16 +25,19 @@
 # many times slower, and is also the most a hung CLI can delay a console start.
 
 # Callers source codex-env.sh first (it names CODEX_DAEMON_PINNED and puts the
-# CLI on PATH).
+# CLI on PATH). The console launcher runs under bashio, which sets errexit,
+# nounset, pipefail and inherit_errexit, so no step here may fail on its own: a
+# CLI that cannot run, a missing record or an unwritable one leaves the console
+# starting as before.
 
 pin_codex_daemon() {
     local cli pinned out
-    cli=$(codex --version 2>/dev/null | awk '/^codex-cli /{print $2}')
+    cli=$({ codex --version 2>/dev/null || true; } | awk '/^codex-cli /{print $2}')
     [ -n "${cli}" ] || return 0
-    pinned=$(cat "${CODEX_DAEMON_PINNED}" 2>/dev/null)
+    pinned=$(cat "${CODEX_DAEMON_PINNED}" 2>/dev/null || true)
     [ "${pinned}" = "${cli}" ] && return 0
     if out=$(timeout 120 codex app-server daemon update --from-cli --yes 2>&1 </dev/null); then
-        printf '%s\n' "${cli}" > "${CODEX_DAEMON_PINNED}"
+        printf '%s\n' "${cli}" 2>/dev/null > "${CODEX_DAEMON_PINNED}" || true
         echo "Codex background service: matched to Codex CLI ${cli}"
         return 0
     fi

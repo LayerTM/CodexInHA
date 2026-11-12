@@ -26,17 +26,20 @@ case "$FAKE_UPDATE" in
 esac
 `;
 
-function run({ version = '0.167.2', update = 'ok', pinned = null } = {}) {
+function run({ version = '0.167.2', update = 'ok', pinned = null, markerDir = true, cliRuns = true } = {}) {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'codex-daemon-'));
   try {
     fs.mkdirSync(path.join(dir, 'bin'));
-    fs.writeFileSync(path.join(dir, 'bin', 'codex'), FAKE_CODEX, { mode: 0o755 });
-    const marker = path.join(dir, 'pinned');
+    fs.writeFileSync(path.join(dir, 'bin', 'codex'), cliRuns ? FAKE_CODEX : '#!/bin/bash\nexit 127\n', { mode: 0o755 });
+    const marker = markerDir ? path.join(dir, 'pinned') : path.join(dir, 'missing', 'pinned');
     if (pinned !== null) fs.writeFileSync(marker, `${pinned}\n`);
     const calls = path.join(dir, 'calls');
     // PATH is set inside the script: a shell may rebuild it from its own startup
     // files, and the stand-in has to come first in the one the function sees.
-    const script = `PATH='${path.join(dir, 'bin')}':$PATH\n. '${path.join(LIB, 'codex-daemon.sh')}'\npin_codex_daemon`;
+    // The shell options the console launcher runs under (bashio sets them), so a
+    // step that fails on its own ends the script here as it would the console.
+    const strict = 'set -o errexit -o errtrace -o nounset -o pipefail; shopt -s inherit_errexit 2>/dev/null || true';
+    const script = `${strict}\nPATH='${path.join(dir, 'bin')}':$PATH\n. '${path.join(LIB, 'codex-daemon.sh')}'\npin_codex_daemon\necho REACHED-LAUNCH`;
     const r = spawnSync('bash', ['-c', script], {
       encoding: 'utf8',
       env: {
@@ -48,7 +51,10 @@ function run({ version = '0.167.2', update = 'ok', pinned = null } = {}) {
       },
     });
     const read = (f) => (fs.existsSync(f) ? fs.readFileSync(f, 'utf8') : null);
-    return { status: r.status, stdout: r.stdout, stderr: r.stderr, calls: read(calls), marker: read(marker) };
+    // Every case must get past the function to the launch, as the console would.
+    assert.ok(r.stdout.endsWith('REACHED-LAUNCH\n'), `the launch was not reached: ${r.status} ${r.stderr}`);
+    const stdout = r.stdout.slice(0, -'REACHED-LAUNCH\n'.length);
+    return { status: r.status, stdout, stderr: r.stderr, calls: read(calls), marker: read(marker) };
   } finally {
     fs.rmSync(dir, { recursive: true, force: true });
   }
@@ -96,6 +102,19 @@ test('a failed pin is reported, not recorded, and never stops the console', () =
 
 test('without a CLI to ask, nothing runs', () => {
   const r = run({ version: '' });
+  assert.strictEqual(r.status, 0);
+  assert.strictEqual(r.calls, null);
+});
+
+test('a missing record directory still pins, and the console still starts', () => {
+  const r = run({ markerDir: false });
+  assert.strictEqual(r.status, 0);
+  assert.strictEqual(r.calls, UPDATE);
+  assert.strictEqual(r.marker, null);
+});
+
+test('a CLI that cannot run leaves the service alone, and the console still starts', () => {
+  const r = run({ cliRuns: false });
   assert.strictEqual(r.status, 0);
   assert.strictEqual(r.calls, null);
 });
