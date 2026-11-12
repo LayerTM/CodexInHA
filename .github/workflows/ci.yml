@@ -306,6 +306,165 @@ jobs:
           GITHUB_TOKEN: ${{ github.token }}
         run: python .github/scripts/pins.py check
 
+  # The architectures come from the add-on's own files rather than being listed
+  # here, so adding one cannot leave it unbuilt — and the script refuses to answer
+  # when config.yaml and build.yaml disagree about the set.
+  arches:
+    name: Architectures
+    runs-on: ubuntu-latest
+    outputs:
+      list: ${{ steps.read.outputs.list }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.14"
+      - run: pip install --disable-pip-version-check PyYAML==6.0.3
+      - name: Test the script the matrix comes from
+        run: python .github/scripts/test_addon_arches.py
+      - name: Read the architectures the add-on declares
+        id: read
+        run: |
+          list="$(python .github/scripts/addon_arches.py)"
+          echo "Declared architectures: ${list}"
+          echo "list=${list}" >> "$GITHUB_OUTPUT"
+
+  # The add-on is built on the ha-agent-core release its lock pins. A pin is
+  # merged only once that release exists and publishes this very lock, and a
+  # version once pinned keeps its URL, commit and digest.
+  core-release:
+    name: Pinned core is released
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v7
+        with:
+          node-version: "26"
+      - name: The lock is well formed and keeps what main pinned
+        run: |
+          lock=codex/core/core.lock.json
+          previous=()
+          if git show origin/main:"${lock}" > "${RUNNER_TEMP}/previous.lock.json" 2>/dev/null; then
+            previous=(--previous-lock "${RUNNER_TEMP}/previous.lock.json")
+          fi
+          node codex/core/verify-core.js check --lock "${lock}" \
+            --adapter-api "$(node -p 'require(process.argv[1]).adapterApi' "${PWD}/${lock}")" "${previous[@]}"
+      - name: The pinned version is published with this lock
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          lock=codex/core/core.lock.json
+          version="$(node -p 'require(process.argv[1]).version' "${PWD}/${lock}")"
+          if ! gh release download "v${version}" --repo LayerTM/ha-agent-core \
+               --pattern core.lock.json --dir "${RUNNER_TEMP}/published"; then
+            echo "ha-agent-core v${version} is not released; this pin cannot be merged yet."
+            exit 1
+          fi
+          node -e 'require("node:assert").deepStrictEqual(require(process.argv[1]), require(process.argv[2]))' \
+            "${PWD}/${lock}" "${RUNNER_TEMP}/published/core.lock.json"
+          echo "ha-agent-core v${version} is published with this lock."
+
+  # A broken Dockerfile used to be invisible until a user's own update rebuilt
+  # the image on their device. This builds it for every declared architecture,
+  # natively, and publishes nothing.
+  image:
+    name: Add-on image (${{ matrix.arch }})
+    needs: arches
+    strategy:
+      fail-fast: false
+      matrix:
+        arch: ${{ fromJSON(needs.arches.outputs.list) }}
+    runs-on: ${{ matrix.arch == 'aarch64' && 'ubuntu-24.04-arm' || 'ubuntu-latest' }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.14"
+      - run: pip install --disable-pip-version-check PyYAML==6.0.3
+      - uses: actions/setup-node@v7
+        with:
+          node-version: "26"
+      - name: Resolve the platform and base image for ${{ matrix.arch }}
+        id: target
+        run: |
+          case "${{ matrix.arch }}" in
+            amd64)   platform=linux/amd64 ;;
+            aarch64) platform=linux/arm64 ;;
+            *)
+              echo "No Docker platform is mapped for '${{ matrix.arch }}'."
+              echo "It is declared in the add-on but this job does not know how"
+              echo "to build it — add the mapping here rather than dropping it."
+              exit 1
+              ;;
+          esac
+          echo "platform=${platform}" >> "$GITHUB_OUTPUT"
+          echo "from=$(python .github/scripts/addon_arches.py --build-from '${{ matrix.arch }}')" >> "$GITHUB_OUTPUT"
+      - name: Refuse to pass by emulating the target
+        run: |
+          # Building arm64 under QEMU would still go green while taking half an
+          # hour and exercising a different code path than users get. If the
+          # native runner is unavailable this must fail loudly, not quietly
+          # emulate: the point of the job is to build what ships.
+          want='${{ steps.target.outputs.platform }}'
+          have="linux/$(dpkg --print-architecture)"
+          if [ "${want}" != "${have}" ]; then
+            echo "This runner is ${have} but the job must build ${want}."
+            echo "Give this architecture a runner that matches it."
+            exit 1
+          fi
+      - name: Fetch the pinned core
+        id: core
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          source="$(.github/scripts/core_archive.sh "${RUNNER_TEMP}/core")"
+          echo "source=${source}" >> "$GITHUB_OUTPUT"
+      - name: Build the add-on image (no push)
+        run: |
+          # Once the pinned core is released the image fetches it itself, as it
+          # does on a user's device; before that, the packed archive stands in
+          # for the download and is still checked against the lock.
+          archive=()
+          if [ '${{ steps.core.outputs.source }}' = packed ]; then
+            archive=(--build-context "core-archive=${RUNNER_TEMP}/core")
+          fi
+          docker build --pull \
+            "${archive[@]}" \
+            --platform '${{ steps.target.outputs.platform }}' \
+            --build-arg BUILD_FROM='${{ steps.target.outputs.from }}' \
+            --tag 'addon-image:${{ matrix.arch }}' \
+            codex
+      - name: Check the image runs what it shipped
+        run: |
+          # A build that succeeds and produces a binary that cannot execute on
+          # this architecture is the exact failure a user would hit, so ask the
+          # image, not the builder.
+          docker run --rm --network none --platform '${{ steps.target.outputs.platform }}' \
+            --entrypoint /opt/codex-npm/bin/codex 'addon-image:${{ matrix.arch }}' --version
+          docker run --rm --network none --platform '${{ steps.target.outputs.platform }}' \
+            --entrypoint /usr/local/bin/node 'addon-image:${{ matrix.arch }}' \
+            -e "require('/opt/agent-console/node_modules/node-pty').spawn('/bin/true', [], {}).onExit(({ exitCode }) => { console.log('node-pty spawns, exit ' + exitCode); process.exit(exitCode); })"
+      - name: The bundled CLI parses every argument list the prompt runner builds
+        run: |
+          # The lists come from the core and the adapter inside the image, not
+          # from a copy, so a CLI bump that drops or renames a flag or a feature
+          # fails here instead of turning every chat request into an error.
+          docker run --rm --network none --platform '${{ steps.target.outputs.platform }}' \
+            --volume "${PWD}/.github/scripts:/ci:ro" \
+            --entrypoint /usr/local/bin/node 'addon-image:${{ matrix.arch }}' \
+            /ci/runner_args_smoke.js /opt/codex-npm/bin/codex /opt/agent-console
+      - name: Start-up, launch and update behave as recorded
+        run: |
+          # The service script, the Codex tab launcher and both update paths,
+          # run inside the image against a recording stand-in for the CLI. What
+          # they set up and call is pinned so that moving this code elsewhere
+          # can be checked against it.
+          docker run --rm --network none --platform '${{ steps.target.outputs.platform }}' \
+            --volume "${PWD}/codex/app/test/image:/pins-src:ro" \
+            --entrypoint bash 'addon-image:${{ matrix.arch }}' /pins-src/behaviour-pins.sh
+
   # What a release's notes carry is decided by a script, so it can be tested.
   # This job always runs, so the release below may need it.
   release-notes:
@@ -344,6 +503,9 @@ jobs:
       - hygiene
       - workflow-gates
       - pins
+      - arches
+      - core-release
+      - image
       - release-notes
     if: >-
       github.event_name == 'workflow_dispatch' &&
