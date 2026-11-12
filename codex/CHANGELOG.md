@@ -4,6 +4,7 @@
 
 - Built on ha-agent-core 0.14.0 ([release notes](https://github.com/LayerTM/ha-agent-core/releases/tag/v0.14.0)).
 - Codex CLI 0.167.2.
+- Home Assistant CLI 5.7.0 ([release notes](https://github.com/home-assistant/cli/releases/tag/5.7.0)).
 - A skill installed from the console (under `/data/home/.agents/skills`) no longer reaches requests from Assist,
   automations and the Prompt API, even when the request names it with `$name`: each such request runs with an
   empty home directory of its own. This closes the known limit stated for 0.3.6. The console keeps every skill.
