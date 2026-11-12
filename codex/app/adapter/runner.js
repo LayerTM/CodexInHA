@@ -86,6 +86,17 @@ const PASSTHROUGH_ENV = [
 // --disable is a startup error, so the list must come from the CLI that runs.
 let featureCache = { version: null, features: null };
 
+// What a run takes from the add-on's environment: the PASSTHROUGH_ENV names that
+// are set. Every engine child — a prompt run and the one-shot question — takes it
+// from here.
+function passthroughEnv(env) {
+  const out = {};
+  for (const key of PASSTHROUGH_ENV) {
+    if (env[key]) out[key] = env[key];
+  }
+  return out;
+}
+
 function runCli(args) {
   const out = spawnSync(cli.CODEX_BIN, args, {
     encoding: 'utf8',
@@ -287,10 +298,7 @@ function launchRun(spec, { env }) {
   const args = [...built.argv];
   args.splice(args.length - 1, 0,
     '-c', `developer_instructions=${launch.tomlString(spec.systemPrompt)}`);
-  const extra = { ...built.env, CODEX_HOME: cli.PROMPT_HOME };
-  for (const key of PASSTHROUGH_ENV) {
-    if (env[key]) extra[key] = env[key];
-  }
+  const extra = { ...built.env, CODEX_HOME: cli.PROMPT_HOME, ...passthroughEnv(env) };
   runCredentials.set(spec, extra[cli.API_KEY_ENV] ? 'durable' : 'login');
   // The run's HOME: an empty directory of its own. The CLI reads its sign-in and
   // configuration from CODEX_HOME, which is set above, so it needs nothing from
@@ -447,5 +455,6 @@ module.exports = {
   // Exported for test/assembled/runner.test.js: what a run spec asks of the HA server.
   haServer,
   launch: launchRun,
+  passthroughEnv,
   createDecoder,
 };
