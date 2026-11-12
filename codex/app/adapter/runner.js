@@ -215,6 +215,7 @@ function newRunDir(root = RUN_DIR, { self = process.pid, procRoot = '/proc' } = 
   const dir = fs.mkdtempSync(path.join(root, `run-${owner}-`));
   fs.chmodSync(dir, 0o700);
   fs.mkdirSync(path.join(dir, 'work'), { mode: 0o700 });
+  fs.mkdirSync(path.join(dir, 'home'), { mode: 0o700 });
   live.add(dir);
   return dir;
 }
@@ -291,7 +292,13 @@ function launchRun(spec, { env }) {
     if (env[key]) extra[key] = env[key];
   }
   runCredentials.set(spec, extra[cli.API_KEY_ENV] ? 'durable' : 'login');
-  return { args, env: extra };
+  // The run's HOME: an empty directory of its own. The CLI reads its sign-in and
+  // configuration from CODEX_HOME, which is set above, so it needs nothing from
+  // HOME; but it also discovers skills under $HOME/.agents/skills by itself, and
+  // the add-on's HOME is the console's, where the console's user installs them.
+  // With the console's HOME a `$name` in a request put such a skill's
+  // instructions into the run.
+  return { args, env: extra, home: path.join(runDir, 'home') };
 }
 
 // The tokens one run used. The CLI reports them per turn, without a model name,

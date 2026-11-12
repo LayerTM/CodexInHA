@@ -116,6 +116,20 @@ test('a decoder for a spec that was never launched names no credential', () => {
   assert.ok(!('credential' in result));
 });
 
+test('every run gets an empty HOME of its own, never the console\'s', () => {
+  const first = runner.launch(spec(), { env: {} });
+  const second = runner.launch(spec(), { env: {} });
+  for (const { home } of [first, second]) {
+    assert.ok(path.isAbsolute(home), home);
+    assert.ok(fs.statSync(home).isDirectory(), home);
+    assert.deepEqual(fs.readdirSync(home), []);
+    assert.notEqual(home, os.homedir());
+  }
+  assert.notEqual(first.home, second.home);
+  // The sign-in is read from CODEX_HOME, which the run still names.
+  assert.equal(first.env.CODEX_HOME, cli.PROMPT_HOME);
+});
+
 test('a failure that is not a refused sign-in carries no credential', () => {
   const s = spec();
   runner.launch(s, { env: { CODEX_API_KEY: KEY } });
