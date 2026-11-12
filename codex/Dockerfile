@@ -108,7 +108,7 @@ SHELL ["/bin/bash", "-o", "pipefail", "-c"]
 # upstream change of the package's shape fails the build here instead of at a
 # user's next start.
 # upstream: npm @openai/codex
-ARG CODEX_VERSION=0.167.1
+ARG CODEX_VERSION=0.167.2
 ENV NPM_CONFIG_PREFIX=/opt/codex-npm
 RUN npm install --global --no-audit --no-fund "@openai/codex@${CODEX_VERSION}" \
     && npm cache clean --force \
@@ -138,7 +138,7 @@ ENV PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1
 
 # --- Home Assistant command-line tools (static, architecture-aware) ---
 # upstream: github-release home-assistant/cli
-ARG HA_CLI_VERSION=5.6.0
+ARG HA_CLI_VERSION=5.7.0
 # upstream: github-release mikefarah/yq
 ARG YQ_VERSION=4.54.3
 RUN arch="$(dpkg --print-architecture)" \
