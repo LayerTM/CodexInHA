@@ -265,9 +265,16 @@ jobs:
   # commit carries a version that has no release yet, i.e. on the pull request
   # that bumps the version and on any run that would cut it. A release therefore
   # never ships a pin that is behind, and an upstream that cannot be read fails it.
+  #
+  # A pin behind its upstream fails a pull request. On main it does not fail the
+  # commit, which passed before the upstream published: the run records drift,
+  # the release waits for it, and pins-bump opens the pull request that moves
+  # the pins (pins_drift.py). An upstream that cannot be read fails everywhere.
   pins:
     name: Upstream pins
     runs-on: ubuntu-latest
+    outputs:
+      drift: ${{ steps.check.outputs.drift }}
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-python@v7
@@ -275,6 +282,8 @@ jobs:
           python-version: "3.14"
       - name: Test the script that reads the pins
         run: python .github/scripts/test_pins.py
+      - name: Test the script that decides what a pin behind its upstream means
+        run: python .github/scripts/test_pins_drift.py
       - name: Does this commit carry an unreleased version
         id: release
         env:
@@ -301,10 +310,53 @@ jobs:
               ;;
           esac
       - name: Every pin matches its upstream
+        id: check
         if: steps.release.outputs.unreleased == 'true'
         env:
           GITHUB_TOKEN: ${{ github.token }}
-        run: python .github/scripts/pins.py check
+        run: |
+          status=0
+          python .github/scripts/pins.py check || status=$?
+          python .github/scripts/pins_drift.py verdict "${status}"
+
+  # The pull request for drift that main recorded: one branch, pins/bump, kept
+  # at exactly what `pins.py bump` writes on top of main, and CI started on it
+  # (a pull request opened with the workflow token raises no event of its own).
+  # Its content is this repository's own script run on main's own tree. It runs
+  # on every run so that the release can wait for it; only drift gives it work.
+  pins-bump:
+    name: Upstream pins bump
+    needs: pins
+    runs-on: ubuntu-latest
+    permissions:
+      actions: write
+      contents: write
+      pull-requests: write
+    # Two runs of main never write the branch at once; a run with nothing to
+    # move (every pull request) is in a group of its own and waits for nobody.
+    concurrency:
+      group: ${{ needs.pins.outputs.drift == 'true' && 'pins-bump' || format('pins-bump-{0}', github.run_id) }}
+    steps:
+      - name: Nothing to move
+        if: needs.pins.outputs.drift != 'true'
+        run: echo "No pin is behind on this run."
+      - uses: actions/checkout@v7
+        if: needs.pins.outputs.drift == 'true'
+      - uses: actions/setup-python@v7
+        if: needs.pins.outputs.drift == 'true'
+        with:
+          python-version: "3.14"
+      # pins.py bump refreshes package-lock.json files with npm.
+      - uses: actions/setup-node@v7
+        if: needs.pins.outputs.drift == 'true'
+        with:
+          node-version: "26"
+      - name: Open or update the bump pull request
+        if: needs.pins.outputs.drift == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GITHUB_TOKEN: ${{ github.token }}
+        run: python .github/scripts/pins_drift.py open-pr
 
   # The architectures come from the add-on's own files rather than being listed
   # here, so adding one cannot leave it unbuilt — and the script refuses to answer
@@ -503,6 +555,7 @@ jobs:
       - hygiene
       - workflow-gates
       - pins
+      - pins-bump
       - arches
       - core-release
       - image
@@ -510,7 +563,8 @@ jobs:
     if: >-
       github.event_name == 'workflow_dispatch' &&
       github.ref == 'refs/heads/main' &&
-      inputs.cut_release == true
+      inputs.cut_release == true &&
+      needs.pins.outputs.drift != 'true'
     runs-on: ubuntu-latest
     permissions:
       contents: write
