@@ -45,6 +45,14 @@ const live = new Set();
 // finished with takes its entry with it.
 const runDirs = new WeakMap();
 
+// Which credential a run signs in with, by spec, for the same reason: the core
+// asks the decoder about a refusal, and only the launch knows what was handed
+// over. `durable` is the add-on's API key option — when CODEX_API_KEY is set the
+// CLI signs in with it and not with the console's stored login (measured on CLI
+// 0.167.1, 2026-11-11: a wrong key was refused even with a valid login present).
+// `login` is the console's ChatGPT sign-in.
+const runCredentials = new WeakMap();
+
 // A Home Assistant tool as the core names it. The CLI reports an MCP call with
 // the server and the tool apart, so the name the core sees is composed here and
 // taken apart again here; nothing else in the core knows the shape.
@@ -77,6 +85,17 @@ const PASSTHROUGH_ENV = [
 // profile switches off every feature that exists, and an unknown name passed to
 // --disable is a startup error, so the list must come from the CLI that runs.
 let featureCache = { version: null, features: null };
+
+// What a run takes from the add-on's environment: the PASSTHROUGH_ENV names that
+// are set. Every engine child — a prompt run and the one-shot question — takes it
+// from here.
+function passthroughEnv(env) {
+  const out = {};
+  for (const key of PASSTHROUGH_ENV) {
+    if (env[key]) out[key] = env[key];
+  }
+  return out;
+}
 
 function runCli(args) {
   const out = spawnSync(cli.CODEX_BIN, args, {
@@ -207,6 +226,7 @@ function newRunDir(root = RUN_DIR, { self = process.pid, procRoot = '/proc' } = 
   const dir = fs.mkdtempSync(path.join(root, `run-${owner}-`));
   fs.chmodSync(dir, 0o700);
   fs.mkdirSync(path.join(dir, 'work'), { mode: 0o700 });
+  fs.mkdirSync(path.join(dir, 'home'), { mode: 0o700 });
   live.add(dir);
   return dir;
 }
@@ -278,11 +298,15 @@ function launchRun(spec, { env }) {
   const args = [...built.argv];
   args.splice(args.length - 1, 0,
     '-c', `developer_instructions=${launch.tomlString(spec.systemPrompt)}`);
-  const extra = { ...built.env, CODEX_HOME: cli.PROMPT_HOME };
-  for (const key of PASSTHROUGH_ENV) {
-    if (env[key]) extra[key] = env[key];
-  }
-  return { args, env: extra };
+  const extra = { ...built.env, CODEX_HOME: cli.PROMPT_HOME, ...passthroughEnv(env) };
+  runCredentials.set(spec, extra[cli.API_KEY_ENV] ? 'durable' : 'login');
+  // The run's HOME: an empty directory of its own. The CLI reads its sign-in and
+  // configuration from CODEX_HOME, which is set above, so it needs nothing from
+  // HOME; but it also discovers skills under $HOME/.agents/skills by itself, and
+  // the add-on's HOME is the console's, where the console's user installs them.
+  // With the console's HOME a `$name` in a request put such a skill's
+  // instructions into the run.
+  return { args, env: extra, home: path.join(runDir, 'home') };
 }
 
 // The tokens one run used. The CLI reports them per turn, without a model name,
@@ -332,6 +356,9 @@ function createDecoder(spec) {
   // and the same request would try it again, so it is not re-run.
   // `authExpired` tells it the server refused the sign-in (events.js decides);
   // the core reports that as its own reason and does not retry it either.
+  // `credential` says which sign-in was refused, so the person is told to fix
+  // that one; a decoder for a spec this adapter never launched says nothing.
+  const credential = runCredentials.get(spec);
   const failure = (message, reason, authExpired) => {
     done = true;
     finish();
@@ -339,7 +366,7 @@ function createDecoder(spec) {
       type: 'result',
       isError: true,
       deterministic: reason === 'policy',
-      ...(authExpired ? { authExpired: true } : {}),
+      ...(authExpired ? { authExpired: true, ...(credential ? { credential } : {}) } : {}),
       structured: undefined,
       text: message,
       numTurns: null,
@@ -428,5 +455,6 @@ module.exports = {
   // Exported for test/assembled/runner.test.js: what a run spec asks of the HA server.
   haServer,
   launch: launchRun,
+  passthroughEnv,
   createDecoder,
 };

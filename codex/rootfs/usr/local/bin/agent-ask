@@ -3,8 +3,14 @@
 
 // The engine's one-shot question for the core's health check and morning
 // briefing: the prompt on stdin, the answer on stdout, a non-zero exit when the
-// agent gives none. The caller strips the Home Assistant and Supervisor
-// credentials from the environment.
+// agent gives none.
+//
+// Its environment is built by the core's own rule for an engine child
+// (`childEnv` in server/prompt/run.js), the one a prompt run gets: PATH, LANG,
+// TERM, the adapter's own variables, and none of the Supervisor or Home
+// Assistant credentials and addresses, whatever the caller passed. Its HOME is
+// the run directory's empty home, not the console's, for the reason a prompt
+// run's is: the CLI discovers skills under $HOME/.agents/skills by itself.
 //
 // The restrictions are NOT written here. They come from the adapter's launch
 // profile — the same list a prompt-API request is built from — because these
@@ -23,6 +29,7 @@ const ADAPTER = '/opt/agent-console/adapter';
 const cli = require(`${ADAPTER}/cli`);
 const launch = require(`${ADAPTER}/launch`);
 const runner = require(`${ADAPTER}/runner`);
+const { childEnv } = require('/opt/agent-console/server/prompt/run.js');
 
 function readStdin() {
   try {
@@ -60,7 +67,11 @@ function main() {
 
   const child = spawn(cli.CODEX_BIN, command.argv, {
     cwd: command.cwd,
-    env: { ...process.env, ...command.env, CODEX_HOME: cli.PROMPT_HOME },
+    env: childEnv(
+      process.env,
+      { ...command.env, CODEX_HOME: cli.PROMPT_HOME, ...runner.passthroughEnv(process.env) },
+      path.join(runDir, 'home'),
+    ),
     stdio: ['pipe', 'pipe', 'inherit'],
   });
 
