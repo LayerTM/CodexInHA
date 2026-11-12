@@ -640,6 +640,18 @@ yes_ "monitor: the CLI's environment was recorded" test -s "${P}/codex-env.log"
 eq "monitor: none of the core's kept-back names in the CLI's environment" "$(leaked_env)" ""
 eq "monitor: a finding is pushed with its title" "$(cat "${P}/notify.log")" "Good morning from the pins|Codex · HA health check"
 
+# The one-shot question itself, whatever its caller passes: the loops above
+# already strip their credentials, so this asks agent-ask directly with every
+# name of the core's list set, and none may reach the CLI.
+echo "# agent-ask"
+reset
+ask_fakes
+touch "${P}/log-env"
+printf 'PINS-QUESTION\n' | "${loop_env[@]}" /usr/local/bin/agent-ask > "${P}/ask.out" 2> "${P}/ask.err"
+eq "one-shot: the question is answered" "$(cat "${P}/ask.out")" "Good morning from the pins"
+yes_ "one-shot: the CLI's environment was recorded" test -s "${P}/codex-env.log"
+eq "one-shot: none of the core's kept-back names reach the CLI from its caller" "$(leaked_env)" ""
+
 # --- 6. a prompt API run is not counted twice ----------------------------------------
 # The core counts prompt runs from its audit log; agent-usage counts the console's
 # session files. A run must therefore leave no session file: what agent-usage
