@@ -226,6 +226,43 @@ with tempfile.TemporaryDirectory() as raw:
     check("a version git never committed has no time", release_notes.pending_since(cfg), None)
     check("and the command exits 1", release_notes.main(["pending-since", str(cfg)]), 1)
 
+print("the version moves only in its own release pull request")
+for base, head, title, allowed in [
+    ("0.3.7", "0.3.7", "Codex CLI 0.169.0", True),               # no move: any title
+    ("0.3.7", "0.3.8", "Release 0.3.8", True),
+    ("0.3.7", "0.3.8", "Release 0.3.8: ha-agent-core 0.15.0", True),
+    ("0.3.7", "0.3.8", "  Release 0.3.8  ", True),
+    ("0.3.7", "0.3.8", "Codex CLI 0.168.0", False),               # the bump that reached users unreleased
+    ("0.3.7", "0.3.8", "Release 0.3.9", False),                   # a release of another version
+    ("0.3.7", "0.3.8", "Release 0.3.80", False),
+    ("0.3.7", "0.3.8", "Release 0.3.8.1", False),
+    ("0.3.7", "0.3.8", "release 0.3.8", False),
+    ("0.3.7", "0.3.8", "Prepare Release 0.3.8", False),
+    ("0.3.8", "0.3.7", "Codex CLI 0.169.0", False),               # a move back is a move
+    (None, "0.3.8", "Add the add-on", False),                     # no base version is a move
+    (None, "0.3.8", "Release 0.3.8", True),
+    ("0.3.7", None, "Release 0.3.8", False),                      # a head without a version is refused
+]:
+    check(f"{base} -> {head} titled {title.strip()!r}", release_notes.version_move(base, head, title) is None, allowed)
+
+with tempfile.TemporaryDirectory() as raw:
+    tmp = pathlib.Path(raw)
+    base_cfg, head_cfg = tmp / "base.yaml", tmp / "head.yaml"
+    base_cfg.write_text('name: "X"\nversion: "0.3.7"\n')
+    head_cfg.write_text('name: "X"\nversion: "0.3.8"\n')
+
+    def cli(*args: str) -> int:
+        return subprocess.run(
+            [sys.executable, str(pathlib.Path(release_notes.__file__)), "version-move", *args],
+            capture_output=True, text=True,
+        ).returncode
+
+    print("the command a workflow runs, through its exit status")
+    check("a moved version in a feature pull request exits 1", cli(str(base_cfg), str(head_cfg), "Codex CLI 0.168.0"), 1)
+    check("the same move in its release pull request exits 0", cli(str(base_cfg), str(head_cfg), "Release 0.3.8"), 0)
+    check("an unchanged version exits 0", cli(str(head_cfg), str(head_cfg), "Anything"), 0)
+    check("a base file that does not exist is a move", cli(str(tmp / "missing.yaml"), str(head_cfg), "Anything"), 1)
+
 print("the real files of this repository, not a fixture")
 real_config = (REPO / "codex/config.yaml").read_text(encoding="utf-8")
 real_changelog = (REPO / "codex/CHANGELOG.md").read_text(encoding="utf-8")
