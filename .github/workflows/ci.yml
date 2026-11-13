@@ -273,6 +273,10 @@ jobs:
   pins:
     name: Upstream pins
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      # Reads the pull request's title (the version-move step below).
+      pull-requests: read
     outputs:
       drift: ${{ steps.check.outputs.drift }}
     steps:
@@ -284,6 +288,24 @@ jobs:
         run: python .github/scripts/test_pins.py
       - name: Test the script that decides what a pin behind its upstream means
         run: python .github/scripts/test_pins_drift.py
+      # The add-on store offers config.yaml's version from main the moment a
+      # pull request merges, released or not, so the version moves only in the
+      # pull request that releases it ("Release X.Y.Z"). The title is read when
+      # the step runs, not from the event, so re-running this job after
+      # retitling a pull request sees the new title.
+      - name: The version moves only in its release pull request
+        if: github.event_name == 'pull_request'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR: ${{ github.event.pull_request.number }}
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+        run: |
+          git fetch --no-tags --depth=1 origin "${BASE_SHA}"
+          base="${RUNNER_TEMP}/base-config.yaml"
+          # A base without the file has no version: adding it is a move.
+          if ! git show "${BASE_SHA}:codex/config.yaml" > "${base}"; then rm -f "${base}"; fi
+          title="$(gh pr view "${PR}" --json title --jq .title)"
+          python .github/scripts/release_notes.py version-move "${base}" codex/config.yaml "${title}"
       - name: Does this commit carry an unreleased version
         id: release
         env:

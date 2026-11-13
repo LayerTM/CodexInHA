@@ -34,6 +34,15 @@ Commands:
                     print the commit time (epoch seconds) of the commit that
                     put config.yaml's current version there; exit 1 if git
                     history does not show one.
+  version-move <base config.yaml> <head config.yaml> <pull request title>
+                    exit 0 if the version is the same on both sides, or the
+                    pull request is the release of the head version (its
+                    title starts "Release X.Y.Z"); exit 1 otherwise. The
+                    add-on store offers config.yaml's version from main the
+                    moment a pull request merges, so a version that moves
+                    anywhere but in its own release pull request reaches users
+                    before it is released. A base without a parseable version
+                    counts as a move.
 
 Run: python3 .github/scripts/release_notes.py <command> ...
 """
@@ -49,6 +58,10 @@ from typing import Callable
 
 VERSION_RE = re.compile(r'^version:\s*"?(\d+\.\d+\.\d+)', re.MULTILINE)
 HEADER_RE = re.compile(r"^## \[?(\d+\.\d+\.\d+)\]?[^\n]*$", re.MULTILINE)
+
+# "Release 0.3.8" alone, or followed by ":" and a summary, as release pull
+# requests are titled; "Release 0.3.80" is not a release of 0.3.8.
+RELEASE_TITLE_RE = re.compile(r"^Release (\d+\.\d+\.\d+)(?![\d.])")
 
 IsReleased = Callable[[str], bool]
 
@@ -193,6 +206,34 @@ def cmd_notes(args: argparse.Namespace, is_released: IsReleased) -> int:
     return 0
 
 
+def version_move(base: str | None, head: str | None, title: str) -> str | None:
+    """Why this pull request may not carry this version change, or None if it may."""
+    if head is None:
+        return "the pull request's config.yaml declares no version"
+    if base == head:
+        return None
+    match = RELEASE_TITLE_RE.match(title.strip())
+    if match and match.group(1) == head:
+        return None
+    return (
+        f"config.yaml's version moves from {base or 'none'} to {head}, but this pull request is not "
+        f"titled 'Release {head}'. The add-on store offers main's version as soon as this merges, "
+        f"so the version moves only in the release pull request."
+    )
+
+
+def cmd_version_move(args: argparse.Namespace) -> int:
+    base_path = pathlib.Path(args.base)
+    base = parse_config_version(base_path.read_text(encoding="utf-8")) if base_path.is_file() else None
+    head = parse_config_version(pathlib.Path(args.head).read_text(encoding="utf-8"))
+    reason = version_move(base, head, args.title)
+    if reason:
+        print(reason, file=sys.stderr)
+        return 1
+    print(f"version {head}: " + ("unchanged" if base == head else "moved by its release pull request"))
+    return 0
+
+
 def main(argv: list[str], is_released: IsReleased | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     sub = parser.add_subparsers(dest="command", required=True)
@@ -214,6 +255,12 @@ def main(argv: list[str], is_released: IsReleased | None = None) -> int:
     p_notes.add_argument("changelog")
     p_notes.add_argument("--write", required=True)
     p_notes.set_defaults(func=lambda a: cmd_notes(a, is_released or gh_release_exists))
+
+    p_move = sub.add_parser("version-move")
+    p_move.add_argument("base")
+    p_move.add_argument("head")
+    p_move.add_argument("title")
+    p_move.set_defaults(func=cmd_version_move)
 
     args = parser.parse_args(argv)
     return args.func(args)
