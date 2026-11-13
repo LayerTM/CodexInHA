@@ -296,10 +296,19 @@ jobs:
         if: github.event_name == 'pull_request'
         env:
           TITLE: ${{ github.event.pull_request.title }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
           BASE_SHA: ${{ github.event.pull_request.base.sha }}
           # Which changelog sections are released is asked of GitHub.
           GH_TOKEN: ${{ github.token }}
         run: |
+          # A run before the pull request exists (a local run of this
+          # workflow, number 0) has no title yet: the head commit's subject
+          # is the title the pull request will be opened with.
+          title="${TITLE}"
+          if [ "${PR_NUMBER:-0}" = "0" ]; then
+            title="$(git log -1 --format=%s HEAD)"
+            echo "No pull request yet; its title will be the head commit's subject: ${title}"
+          fi
           # The checkout is shallow; fetch the base commit only when it is missing.
           if ! git cat-file -e "${BASE_SHA}^{commit}" 2>/dev/null; then
             git fetch --no-tags --depth=1 origin "${BASE_SHA}"
@@ -309,7 +318,7 @@ jobs:
           if ! git show "${BASE_SHA}:codex/config.yaml" > "${base}"; then rm -f "${base}"; fi
           base_log="${RUNNER_TEMP}/base-changelog.md"
           if ! git show "${BASE_SHA}:codex/CHANGELOG.md" > "${base_log}"; then rm -f "${base_log}"; fi
-          python .github/scripts/release_notes.py version-move "${base}" codex/config.yaml "${TITLE}" \
+          python .github/scripts/release_notes.py version-move "${base}" codex/config.yaml "${title}" \
             --changelog codex/CHANGELOG.md --base-changelog "${base_log}"
       - name: Does this commit carry an unreleased version
         id: release
