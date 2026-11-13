@@ -289,17 +289,65 @@ for label, text, moved, head, allowed in [
 ]:
     check(label, release_notes.changelog_problem(text, moved, head) is None, allowed)
 
-print("a release's notes never carry the Unreleased section above the version")
+print("the cut refuses while an Unreleased section is left: those changes would ship unlisted")
 with tempfile.TemporaryDirectory() as raw:
     tmp = pathlib.Path(raw)
     (tmp / "config.yaml").write_text('name: "X"\nversion: "0.3.9"\n')
+    released_08 = lambda v: v == "0.3.8"
     (tmp / "CHANGELOG.md").write_text(LOG.format(U).replace(U, U + "## 0.3.9\n\n- New.\n\n"))
     out = tmp / "notes.md"
     code = release_notes.main(["notes", str(tmp / "config.yaml"), str(tmp / "CHANGELOG.md"), "--write", str(out)],
-                              is_released=lambda v: v == "0.3.8")
-    check("notes exit 0 with Unreleased on top", code, 0)
-    check("notes carry the version's own line", "- New." in text_of(out), True)
-    check("notes leave the Unreleased line out", "Pending" in text_of(out), False)
+                              is_released=released_08)
+    check("notes exit 1 with Unreleased left above the version", code, 1)
+    check("and write no notes", out.exists(), False)
+    (tmp / "CHANGELOG.md").write_text(LOG.format("## 0.3.9\n\n- New.\n\n"))
+    code = release_notes.main(["notes", str(tmp / "config.yaml"), str(tmp / "CHANGELOG.md"), "--write", str(out)],
+                              is_released=released_08)
+    check("renamed by the release: notes exit 0", code, 0)
+    check("and carry the version's line", "- New." in text_of(out), True)
+
+print("a released version's changelog section is not rewritten by a pull request")
+BASE_LOG = LOG.format("")
+released = lambda v: v in ("0.3.8", "0.3.7")
+asked: list[str] = []
+def recording(v: str) -> bool:
+    asked.append(v)
+    return released(v)
+for label, head_text, allowed in [
+    ("untouched", BASE_LOG, True),
+    ("a new Unreleased section above", LOG.format(U), True),
+    ("a release section added above", LOG.format("## 0.3.9\n\n- New.\n\n"), True),
+    ("a line added to released 0.3.8", BASE_LOG.replace("- Released.", "- Released.\n- Sneaked in."), False),
+    ("a typo fixed in released 0.3.7", BASE_LOG.replace("- Older.", "- Older!"), False),
+    ("released 0.3.7 removed", BASE_LOG[:BASE_LOG.index("## 0.3.7")].rstrip() + "\n", False),
+]:
+    check(label, release_notes.released_section_changed(BASE_LOG, head_text, released) is None, allowed)
+asked.clear()
+release_notes.released_section_changed(BASE_LOG, LOG.format(U), recording)
+check("an untouched changelog asks GitHub nothing", asked, [])
+pending_base = LOG.format("## 0.3.9\n\n- New.\n\n")
+check("a section not released yet (between a release pull request and its cut) may still change",
+      release_notes.released_section_changed(pending_base, pending_base.replace("- New.", "- New, fixed."), released), None)
+check("the reason says how to proceed",
+      "release pull request" in (release_notes.released_section_changed(BASE_LOG, BASE_LOG.replace("- Older.", "- X."), released) or ""), True)
+
+def lookup_fails(v: str) -> bool:
+    raise release_notes.ReleaseLookupError("no network")
+with tempfile.TemporaryDirectory() as raw:
+    tmp = pathlib.Path(raw)
+    cfg = tmp / "config.yaml"; cfg.write_text('name: "X"\nversion: "0.3.8"\n')
+    base_log, head_log = tmp / "base.md", tmp / "head.md"
+    base_log.write_text(BASE_LOG); head_log.write_text(BASE_LOG.replace("- Older.", "- Older!"))
+    argv = ["version-move", str(cfg), str(cfg), "Fix a typo", "--changelog", str(head_log), "--base-changelog", str(base_log)]
+    check("command: a changed released section exits 1", release_notes.main(argv, is_released=released), 1)
+    check("command: GitHub unable to say exits 2, never 0", release_notes.main(argv, is_released=lookup_fails), 2)
+    head_log.write_text(BASE_LOG)
+    check("command: an untouched changelog exits 0", release_notes.main(argv, is_released=lookup_fails), 0)
+    head_cfg = tmp / "head-config.yaml"; head_cfg.write_text('name: "X"\nversion: "0.3.9"\n')
+    head_log.write_text(LOG.format("## 0.3.9\n\n- New.\n\n").replace("- Older.", "- Older!"))
+    check("command: a release pull request may correct a released section",
+          release_notes.main(["version-move", str(cfg), str(head_cfg), "Release 0.3.9", "--changelog", str(head_log),
+                              "--base-changelog", str(base_log)], is_released=released), 0)
 
 print("the real files of this repository, not a fixture")
 real_config = (REPO / "codex/config.yaml").read_text(encoding="utf-8")

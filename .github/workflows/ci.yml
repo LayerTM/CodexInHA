@@ -297,6 +297,8 @@ jobs:
         env:
           TITLE: ${{ github.event.pull_request.title }}
           BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          # Which changelog sections are released is asked of GitHub.
+          GH_TOKEN: ${{ github.token }}
         run: |
           # The checkout is shallow; fetch the base commit only when it is missing.
           if ! git cat-file -e "${BASE_SHA}^{commit}" 2>/dev/null; then
@@ -305,8 +307,10 @@ jobs:
           base="${RUNNER_TEMP}/base-config.yaml"
           # A base without the file has no version: adding it is a move.
           if ! git show "${BASE_SHA}:codex/config.yaml" > "${base}"; then rm -f "${base}"; fi
+          base_log="${RUNNER_TEMP}/base-changelog.md"
+          if ! git show "${BASE_SHA}:codex/CHANGELOG.md" > "${base_log}"; then rm -f "${base_log}"; fi
           python .github/scripts/release_notes.py version-move "${base}" codex/config.yaml "${TITLE}" \
-            --changelog codex/CHANGELOG.md
+            --changelog codex/CHANGELOG.md --base-changelog "${base_log}"
       - name: Does this commit carry an unreleased version
         id: release
         env:
