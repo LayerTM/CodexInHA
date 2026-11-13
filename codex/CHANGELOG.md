@@ -2,7 +2,7 @@
 
 ## 0.3.8
 
-- Codex CLI 0.168.0.
+- Codex CLI 0.169.0.
 - The agent's instructions say that from Supervisor 2026.12 tools needing raw sockets (nmap, tcpdump) do not work, and point to curl and the Home Assistant API.
 
 ## 0.3.7
