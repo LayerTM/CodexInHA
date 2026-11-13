@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.3.8
+
+- Codex CLI 0.168.0.
+- The agent's instructions say that from Supervisor 2026.12 tools needing raw sockets (nmap, tcpdump) do not work, and point to curl and the Home Assistant API.
+
 ## 0.3.7
 
 - Built on ha-agent-core 0.14.0 ([release notes](https://github.com/LayerTM/ha-agent-core/releases/tag/v0.14.0)).
