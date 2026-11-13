@@ -35,6 +35,7 @@ Commands:
                     put config.yaml's current version there; exit 1 if git
                     history does not show one.
   version-move <base config.yaml> <head config.yaml> <pull request title>
+               --changelog <head CHANGELOG.md>
                     exit 0 if the version is the same on both sides, or the
                     pull request is the release of the head version (its
                     title starts "Release X.Y.Z"); exit 1 otherwise. The
@@ -42,7 +43,11 @@ Commands:
                     moment a pull request merges, so a version that moves
                     anywhere but in its own release pull request reaches users
                     before it is released. A base without a parseable version
-                    counts as a move.
+                    counts as a move. The changelog is checked with it: a pull
+                    request that does not release writes its lines under
+                    `## Unreleased`, the first section; the release pull
+                    request renames that heading to its version, so it carries
+                    no Unreleased section and its version is the top one.
 
 Run: python3 .github/scripts/release_notes.py <command> ...
 """
@@ -58,6 +63,9 @@ from typing import Callable
 
 VERSION_RE = re.compile(r'^version:\s*"?(\d+\.\d+\.\d+)', re.MULTILINE)
 HEADER_RE = re.compile(r"^## \[?(\d+\.\d+\.\d+)\]?[^\n]*$", re.MULTILINE)
+# Every second-level heading, and the one for changes not yet released.
+SECTION_RE = re.compile(r"^## [^\n]*$", re.MULTILINE)
+UNRELEASED_RE = re.compile(r"^## \[?Unreleased\]?\s*$")
 
 # "Release 0.3.8" alone, or followed by ":" and a summary, as release pull
 # requests are titled; "Release 0.3.80" is not a release of 0.3.8.
@@ -222,11 +230,39 @@ def version_move(base: str | None, head: str | None, title: str) -> str | None:
     )
 
 
+def changelog_problem(text: str, moved: bool, head: str | None) -> str | None:
+    """What is wrong with the changelog a pull request carries, or None.
+
+    Lines for changes not yet released go under `## Unreleased`, which must be
+    the first section (the notes of a release are the versioned sections above
+    the last release, so text above the first version is never in them). The
+    release pull request renames it to its version: it carries no Unreleased
+    section, and its version is the top one.
+    """
+    headings = [m.group(0) for m in SECTION_RE.finditer(text)]
+    unreleased = [i for i, h in enumerate(headings) if UNRELEASED_RE.match(h)]
+    if len(unreleased) > 1:
+        return "the changelog has more than one Unreleased section"
+    if unreleased and unreleased[0] != 0:
+        return "the changelog's Unreleased section is not its first section"
+    if not moved:
+        return None
+    if unreleased:
+        return f"a release pull request renames '## Unreleased' to '## {head}'; this one still carries it"
+    sections = parse_changelog_sections(text)
+    top = sections[0][0] if sections else None
+    if top != head:
+        return f"the changelog's top section is {top or 'none'}, but this pull request releases {head}"
+    return None
+
+
 def cmd_version_move(args: argparse.Namespace) -> int:
     base_path = pathlib.Path(args.base)
     base = parse_config_version(base_path.read_text(encoding="utf-8")) if base_path.is_file() else None
     head = parse_config_version(pathlib.Path(args.head).read_text(encoding="utf-8"))
-    reason = version_move(base, head, args.title)
+    reason = version_move(base, head, args.title) or changelog_problem(
+        pathlib.Path(args.changelog).read_text(encoding="utf-8"), base != head, head
+    )
     if reason:
         print(reason, file=sys.stderr)
         return 1
@@ -260,6 +296,7 @@ def main(argv: list[str], is_released: IsReleased | None = None) -> int:
     p_move.add_argument("base")
     p_move.add_argument("head")
     p_move.add_argument("title")
+    p_move.add_argument("--changelog", required=True)
     p_move.set_defaults(func=cmd_version_move)
 
     args = parser.parse_args(argv)

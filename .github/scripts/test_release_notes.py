@@ -251,9 +251,15 @@ with tempfile.TemporaryDirectory() as raw:
     base_cfg.write_text('name: "X"\nversion: "0.3.7"\n')
     head_cfg.write_text('name: "X"\nversion: "0.3.8"\n')
 
-    def cli(*args: str) -> int:
+    log_released = tmp / "released.md"
+    log_released.write_text("# Changelog\n\n## 0.3.8\n\n- Released.\n\n## 0.3.7\n\n- Older.\n")
+    log_unreleased = tmp / "unreleased.md"
+    log_unreleased.write_text("# Changelog\n\n## Unreleased\n\n- Pending.\n\n## 0.3.7\n\n- Older.\n")
+
+    def cli(*args: str, changelog: pathlib.Path = log_released) -> int:
         return subprocess.run(
-            [sys.executable, str(pathlib.Path(release_notes.__file__)), "version-move", *args],
+            [sys.executable, str(pathlib.Path(release_notes.__file__)), "version-move", *args,
+             "--changelog", str(changelog)],
             capture_output=True, text=True,
         ).returncode
 
@@ -262,6 +268,38 @@ with tempfile.TemporaryDirectory() as raw:
     check("the same move in its release pull request exits 0", cli(str(base_cfg), str(head_cfg), "Release 0.3.8"), 0)
     check("an unchanged version exits 0", cli(str(head_cfg), str(head_cfg), "Anything"), 0)
     check("a base file that does not exist is a move", cli(str(tmp / "missing.yaml"), str(head_cfg), "Anything"), 1)
+    check("a release pull request still carrying Unreleased exits 1",
+          cli(str(base_cfg), str(head_cfg), "Release 0.3.8", changelog=log_unreleased), 1)
+    check("a pull request that does not release may carry Unreleased",
+          cli(str(base_cfg), str(base_cfg), "Fix a thing", changelog=log_unreleased), 0)
+
+print("the changelog a pull request carries: Unreleased for what is not released, renamed by the release")
+LOG = "# Changelog\n\n{}## 0.3.8\n\n- Released.\n\n## 0.3.7\n\n- Older.\n"
+U = "## Unreleased\n\n- Pending.\n\n"
+for label, text, moved, head, allowed in [
+    ("no Unreleased, no move", LOG.format(""), False, "0.3.8", True),
+    ("Unreleased first, no move", LOG.format(U), False, "0.3.8", True),
+    ("[Unreleased] first, no move", LOG.format("## [Unreleased]\n\n- Pending.\n\n"), False, "0.3.8", True),
+    ("Unreleased below a version", LOG.format("").replace("## 0.3.7", U + "## 0.3.7"), False, "0.3.8", False),
+    ("two Unreleased sections", LOG.format(U + U), False, "0.3.8", False),
+    ("release renamed Unreleased to its version", LOG.format("## 0.3.9\n\n- New.\n\n"), True, "0.3.9", True),
+    ("release still carrying Unreleased", LOG.format(U), True, "0.3.9", False),
+    ("release whose top section is another version", LOG.format(""), True, "0.3.9", False),
+    ("an 'Unreleased fixes' heading is not the Unreleased section", LOG.format("## Unreleased fixes\n\n"), False, "0.3.8", True),
+]:
+    check(label, release_notes.changelog_problem(text, moved, head) is None, allowed)
+
+print("a release's notes never carry the Unreleased section above the version")
+with tempfile.TemporaryDirectory() as raw:
+    tmp = pathlib.Path(raw)
+    (tmp / "config.yaml").write_text('name: "X"\nversion: "0.3.9"\n')
+    (tmp / "CHANGELOG.md").write_text(LOG.format(U).replace(U, U + "## 0.3.9\n\n- New.\n\n"))
+    out = tmp / "notes.md"
+    code = release_notes.main(["notes", str(tmp / "config.yaml"), str(tmp / "CHANGELOG.md"), "--write", str(out)],
+                              is_released=lambda v: v == "0.3.8")
+    check("notes exit 0 with Unreleased on top", code, 0)
+    check("notes carry the version's own line", "- New." in text_of(out), True)
+    check("notes leave the Unreleased line out", "Pending" in text_of(out), False)
 
 print("the real files of this repository, not a fixture")
 real_config = (REPO / "codex/config.yaml").read_text(encoding="utf-8")
