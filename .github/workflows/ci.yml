@@ -286,7 +286,10 @@ jobs:
         run: python .github/scripts/test_pins_drift.py
       # The add-on store offers config.yaml's version from main the moment a
       # pull request merges, released or not, so the version moves only in the
-      # pull request that releases it ("Release X.Y.Z"). The title comes from the
+      # pull request that releases it ("Release X.Y.Z"). Until then a pull
+      # request writes its changelog lines under "## Unreleased", the first
+      # section, and the release pull request renames that heading to its
+      # version. The title comes from the
       # event that started the run: a pull request retitled afterwards is checked
       # again by its next push, or by closing and reopening it.
       - name: The version moves only in its release pull request
@@ -294,6 +297,8 @@ jobs:
         env:
           TITLE: ${{ github.event.pull_request.title }}
           BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          # Which changelog sections are released is asked of GitHub.
+          GH_TOKEN: ${{ github.token }}
         run: |
           # The checkout is shallow; fetch the base commit only when it is missing.
           if ! git cat-file -e "${BASE_SHA}^{commit}" 2>/dev/null; then
@@ -302,7 +307,10 @@ jobs:
           base="${RUNNER_TEMP}/base-config.yaml"
           # A base without the file has no version: adding it is a move.
           if ! git show "${BASE_SHA}:codex/config.yaml" > "${base}"; then rm -f "${base}"; fi
-          python .github/scripts/release_notes.py version-move "${base}" codex/config.yaml "${TITLE}"
+          base_log="${RUNNER_TEMP}/base-changelog.md"
+          if ! git show "${BASE_SHA}:codex/CHANGELOG.md" > "${base_log}"; then rm -f "${base_log}"; fi
+          python .github/scripts/release_notes.py version-move "${base}" codex/config.yaml "${TITLE}" \
+            --changelog codex/CHANGELOG.md --base-changelog "${base_log}"
       - name: Does this commit carry an unreleased version
         id: release
         env:
