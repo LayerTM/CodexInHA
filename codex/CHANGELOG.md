@@ -3,7 +3,7 @@
 ## Unreleased
 
 - Home Assistant CLI 6.0.0 ([release notes](https://github.com/home-assistant/cli/releases/tag/6.0.0)).
-- Codex CLI 0.169.1.
+- Codex CLI 0.170.0.
 
 ## 0.3.8
 
