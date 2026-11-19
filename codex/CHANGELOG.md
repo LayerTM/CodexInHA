@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+- A Prompt API run is no longer offered child agent tools. The model's own settings could make the CLI offer them although
+  the multi-agent feature was switched off, and a child agent started without the parent's history did start (with the
+  parent's read-only sandbox and tool set); the run now turns child agents off explicitly. The console keeps them.
+
 ## 0.4.0
 
 - The add-on is installed from a prebuilt image instead of being built on the device: an install or update downloads

@@ -344,7 +344,8 @@ deliberately much more restricted than the interactive console:
   run and removed with it; the user's own configuration, project instructions
   and rules are not read (`--ignore-user-config`, `--ignore-rules`,
   `--strict-config`, `project_doc_max_bytes=0`); nothing may be approved mid-run
-  (`approval_policy="never"`); the web is off (`web_search="disabled"`); and
+  (`approval_policy="never"`); the web is off (`web_search="disabled"`); no
+  child agent can be started (`agents.enabled=false`); and
   every tool that runs a command, reaches the network or loads something you
   installed is switched off by name. On the Home Assistant side the run is given
   a tool server carrying only the tools that request allows, and everything it
