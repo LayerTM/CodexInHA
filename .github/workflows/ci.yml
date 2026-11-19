@@ -481,6 +481,7 @@ jobs:
       - uses: actions/setup-node@v7
         with:
           node-version: "26"
+      - uses: docker/setup-buildx-action@v4
       - name: Build the add-on image (no push)
         env:
           GH_TOKEN: ${{ github.token }}
@@ -541,6 +542,8 @@ jobs:
         if: steps.have.outputs.exists == 'false'
         with:
           node-version: "26"
+      - uses: docker/setup-buildx-action@v4
+        if: steps.have.outputs.exists == 'false'
       - name: Build the candidate
         if: steps.have.outputs.exists == 'false'
         env:
@@ -635,6 +638,8 @@ jobs:
       - run: pip install --disable-pip-version-check PyYAML==6.0.3
       - name: Test the script that reads and publishes the image
         run: python3 .github/scripts/test_addon_image.py
+      - name: Self-test the apt install helper
+        run: python3 .github/scripts/test_apt_install.py
       - name: Does this pull request offer a new version
         id: plan
         env:
