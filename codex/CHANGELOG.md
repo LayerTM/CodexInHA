@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- ha-agent-core 0.15.0 ([release notes](https://github.com/LayerTM/ha-agent-core/releases/tag/v0.15.0)).
 - Home Assistant CLI 6.0.0 ([release notes](https://github.com/home-assistant/cli/releases/tag/6.0.0)).
 - Codex CLI 0.170.0.
 - Playwright MCP 0.0.86.
