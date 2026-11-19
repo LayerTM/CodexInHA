@@ -1,8 +1,12 @@
 # Changelog
 
-## Unreleased
+## 0.4.0
 
-- ha-agent-core 0.15.0 ([release notes](https://github.com/LayerTM/ha-agent-core/releases/tag/v0.15.0)).
+- The add-on is installed from a prebuilt image instead of being built on the device: an install or update downloads
+  the image that was built and tried before the release, and no longer compiles anything on the Home Assistant host.
+- Built on ha-agent-core 0.15.0 ([release notes](https://github.com/LayerTM/ha-agent-core/releases/tag/v0.15.0)):
+  `ws` 8.23.0 fixes a memory-exhaustion flood against the console's terminal socket, and a one-finger swipe scrolls the
+  console history on a touch screen.
 - Home Assistant CLI 6.0.0 ([release notes](https://github.com/home-assistant/cli/releases/tag/6.0.0)).
 - Codex CLI 0.170.0.
 - Playwright MCP 0.0.86.
