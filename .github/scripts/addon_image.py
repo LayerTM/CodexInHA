@@ -192,8 +192,9 @@ def _gh(args: list) -> tuple[int, str, str]:
 
 
 def _run(argv: list) -> int:
-    print("+ " + " ".join(argv), flush=True)
-    return subprocess.run(argv, check=False).returncode
+    """Run a command with its output on stderr: stdout carries only a command's `key=value` result lines."""
+    print("+ " + " ".join(argv), file=sys.stderr, flush=True)
+    return subprocess.run(argv, check=False, stdout=sys.stderr).returncode
 
 
 def pullable(ref: str, get: Get = _get) -> tuple[int, str]:
