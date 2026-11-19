@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+- Home Assistant CLI 6.0.0 ([release notes](https://github.com/home-assistant/cli/releases/tag/6.0.0)).
+- Codex CLI 0.170.0.
+- Playwright MCP 0.0.86.
+
 ## 0.3.8
 
 - Codex CLI 0.169.0.
