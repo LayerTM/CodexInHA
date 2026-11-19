@@ -379,7 +379,7 @@ code, out = run(root, snapshots(), "check", now=NOW)
 check("a snapshot older than a week is behind", (code, f"{SNAP_OLD} -> 20261119T091200Z" in out), (1, True))
 code, _ = run(root, snapshots(), "bump", now=NOW)
 check("bump moves to the newest snapshot BOTH archives have",
-      (code, f"ARG DEBIAN_SNAPSHOT=20261119T091200Z" in (root / "addon/Dockerfile").read_text()), (0, True))
+      (code, "ARG DEBIAN_SNAPSHOT=20261119T091200Z" in (root / "addon/Dockerfile").read_text()), (0, True))
 root = repo(SNAP_DOCKERFILE)
 code, out = run(root, snapshots(), "check", now=epoch(SNAP_OLD) + 6 * 24 * 3600)
 check("a snapshot inside the week is current even though a newer one exists", code, 0)
