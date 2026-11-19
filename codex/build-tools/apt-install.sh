@@ -15,6 +15,10 @@ apt-get "${opts[@]}" update --error-on=any
 apt-get "${opts[@]}" install -y --no-install-recommends "$@"
 rm -rf "${root}"/var/lib/apt/lists/* "${root}"/var/cache/apt/*.bin \
        "${root}"/var/log/apt/* "${root}"/var/log/dpkg.log "${root}"/var/log/alternatives.log \
-       "${root}"/var/cache/ldconfig/aux-cache "${root}"/var/cache/debconf/*-old "${root}"/var/lib/dpkg/*-old
+       "${root}"/var/cache/ldconfig/aux-cache "${root}"/var/cache/debconf/*-old "${root}"/var/lib/dpkg/*-old \
+       "${root}"/var/cache/fontconfig/*
+# The cache files fc-cache writes (the font packages' post-install) record the
+# build-time modification times of the font directories, so they differ on every
+# build; fontconfig rebuilds a missing cache on first use.
 # dbus generates a random machine id on install; a container gets none baked in.
 rm -f "${root}"/etc/machine-id "${root}"/var/lib/dbus/machine-id

@@ -37,7 +37,8 @@ def run(snapshot: str | None = SNAP, fail_on: str = "", args: tuple[str, ...] = 
     for name in ("var/lib/apt/lists/x_InRelease", "var/cache/apt/pkgcache.bin", "var/log/apt/term.log",
                  "var/log/dpkg.log", "var/log/alternatives.log", "var/cache/ldconfig/aux-cache",
                  "var/cache/debconf/config.dat-old", "var/lib/dpkg/status-old",
-                 "etc/machine-id", "var/lib/dbus/machine-id", "var/lib/dpkg/status"):
+                 "etc/machine-id", "var/lib/dbus/machine-id", "var/lib/dpkg/status",
+                 "var/cache/fontconfig/0bd3dc09-le64.cache-9", "var/cache/fontconfig/CACHEDIR.TAG"):
         (root / name).parent.mkdir(parents=True, exist_ok=True)
         (root / name).write_text("state\n")
     bin_dir = root / "bin"
