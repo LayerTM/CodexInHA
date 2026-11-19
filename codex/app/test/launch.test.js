@@ -99,6 +99,7 @@ test('the prompt profile carries every restricting switch', () => {
     'project_doc_max_bytes=0',
     'skills.bundled.enabled=false',
     'skills.include_instructions=false',
+    'agents.enabled=false',
   ]);
   assert.ok(disabled(argv).includes('shell_tool'));
   assert.equal(argv.at(-1), '-', 'the request text comes from stdin');
@@ -129,6 +130,7 @@ test('a prompt run keeps the sandbox that refuses a write, and every denial with
     'project_doc_max_bytes=0',
     'skills.bundled.enabled=false',
     'skills.include_instructions=false',
+    'agents.enabled=false',
   ]);
   const off = disabled(argv);
   // A feature the CLI has removed, or a deprecated one already off by default,
@@ -141,6 +143,24 @@ test('a prompt run keeps the sandbox that refuses a write, and every denial with
   const ask = L.askLaunch({ features: FEATURES, workDir: '/tmp/ask' }).argv;
   assert.deepEqual(ask.slice(0, 2), ['exec', '--json'], 'the one-shot question uses the same profile');
   assert.deepEqual(ask.slice(ask.indexOf('--sandbox'), ask.indexOf('--sandbox') + 2), L.PROMPT_SANDBOX_ARGS);
+});
+
+// The model's catalog entry, not the multi_agent feature, decides whether the
+// CLI offers child agent tools, so disabling every feature leaves them offered.
+// Only the agents table turns them off, and it must stay off in both restricted
+// profiles while the console keeps it.
+test('no restricted run is offered child agents, the console is', () => {
+  const prompt = L.promptLaunch({ features: FEATURES, workDir: '/tmp/p', schemaFile: '/tmp/s.json' }).argv;
+  const ask = L.askLaunch({ features: FEATURES, workDir: '/tmp/a' }).argv;
+  for (const argv of [prompt, ask]) {
+    assert.ok(configs(argv).includes('agents.enabled=false'));
+    assert.ok(!configs(argv).some((c) => /^agents\.enabled=(?!false$)/.test(c)), 'never switched back on');
+    assert.ok(disabled(argv).includes('multi_agent'), 'the feature switch stays off as well');
+  }
+  for (const bypass of [true, false]) {
+    const consoleArgv = L.consoleArgs({ bypass_permissions: bypass, extra_args: [] });
+    assert.ok(!consoleArgv.some((a) => a.startsWith('agents.')), 'the console keeps its child agents');
+  }
 });
 
 // The two profiles are two different answers to the same question, and the

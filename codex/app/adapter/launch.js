@@ -61,8 +61,7 @@ const PROMPT_SANDBOX_ARGS = ['--sandbox', 'read-only'];
 // reach the network or call a tool outside enabled_tools, every attempt failed
 // and nothing reached the disk or the network.
 //
-// The host also lists tools of its own, and they are refused by different
-// things. spawn_agent: by the ephemeral session. apply_patch: by
+// The host also lists tools of its own. apply_patch is refused by
 // PROMPT_SANDBOX_ARGS and by nothing else — measured 2026-09-18 in this add-on
 // with no Home Assistant tool server and no enabled_tools at all, the model was
 // still offered apply_patch and still called it, and under a permissive sandbox
@@ -198,6 +197,14 @@ function restrictedArgv(features, workDir) {
     // a skill under the HOME the run inherits is not reached by any switch.
     '-c', 'skills.bundled.enabled=false',
     '-c', 'skills.include_instructions=false',
+    // No child agents. Whether the CLI offers spawn_agent and the other agent tools
+    // is decided by the model's own catalog entry, which outranks the
+    // multi_agent feature switch: with every feature disabled below, CLI
+    // 0.170.0 still offered them, and a child agent started with fork_turns="none"
+    // (only the default full-history fork failed, for want of the transcript an
+    // ephemeral run never writes). `[agents] enabled = false` is the one
+    // setting that removes the tools whatever the model declares.
+    '-c', 'agents.enabled=false',
     ...promptFeatureArgs(features),
     '--cd', checkAbsolute('work directory', workDir),
   ];
