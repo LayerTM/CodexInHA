@@ -19,6 +19,8 @@ import hashlib
 import io
 import json
 import pathlib
+import re
+import subprocess
 import sys
 
 import yaml
@@ -332,6 +334,8 @@ registry = w.registry_for(IMAGE)
 code, out = quietly(addon_image.push_candidate, registry, VERSION, TREE, "amd64", w.run)
 check("an absent architecture is pushed", (code, w.writes), (0, [["docker", "push", f"{IMAGE}:{VERSION}-rc.{TREE}-amd64"]]))
 check("and its platform digest is reported", out.strip(), f"digest={w.platform['amd64']}")
+check("and stdout holds only key=value lines",
+      all(re.fullmatch(r"[a-z]+=\S+", line) for line in out.splitlines()), True)
 check("an existing one is not pushed again",
       (quietly(addon_image.push_candidate, registry, VERSION, TREE, "amd64", w.run)[0], len(w.writes)), (1, 1))
 w.status[f"{VERSION}-rc.{TREE}-aarch64"] = 500
@@ -378,6 +382,14 @@ check("promotion runs only from main", job.get("if"), "github.ref == 'refs/heads
 check("one promotion per version at a time", promote_wf["concurrency"],
       {"group": "promote-image-${{ inputs.version }}", "cancel-in-progress": False})
 check("its inputs", sorted(promote_wf[True]["workflow_dispatch"]["inputs"]), ["digest", "tree", "version"])
+print("A command's own output never reaches stdout")
+probe = subprocess.run(
+    [sys.executable, "-c", "import sys; sys.path.insert(0, sys.argv[1]); import addon_image; "
+     "sys.exit(addon_image._run(['echo', 'from-the-command']))", str(pathlib.Path(__file__).parent)],
+    capture_output=True, text=True, check=False)
+check("a run's stdout is empty", (probe.returncode, probe.stdout), (0, ""))
+check("its trace and the command's output go to stderr", ("+ echo from-the-command" in probe.stderr, "from-the-command\n" in probe.stderr), (True, True))
 
 print(f"\n{'FAILED' if fails else 'ok'} — {fails} failing check(s)")
 sys.exit(1 if fails else 0)
+
