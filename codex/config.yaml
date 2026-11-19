@@ -1,6 +1,7 @@
 name: "Codex"
-version: "0.3.8"
+version: "0.4.0"
 slug: codex
+image: "ghcr.io/layertm/codex"
 description: "Codex AI assistant embedded in Home Assistant — web console with tabs, clipboard, file attachments, browser testing, and a bundled HA skill pack"
 url: "https://github.com/LayerTM/CodexInHA"
 
