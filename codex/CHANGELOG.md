@@ -10,6 +10,8 @@
 - Codex CLI 0.171.0.
 - The image installs the Codex CLI from a lockfile that names the CLI and its platform builds by integrity, so a registry
   serving a different tarball under the same version fails the build instead of shipping.
+- hass-mcp 0.6.2 ([release notes](https://github.com/voska/hass-mcp/releases/tag/v0.6.2)): entity ids, domains and
+  services are validated before a request is made.
 
 ## 0.4.0
 
