@@ -7,6 +7,7 @@
 - A Prompt API run is no longer offered child agent tools. The model's own settings could make the CLI offer them although
   the multi-agent feature was switched off, and a child agent started without the parent's history did start (with the
   parent's read-only sandbox and tool set); the run now turns child agents off explicitly. The console keeps them.
+- Codex CLI 0.171.0.
 
 ## 0.4.0
 

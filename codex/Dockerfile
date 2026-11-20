@@ -127,7 +127,7 @@ ARG NODE_DISABLE_COMPILE_CACHE=1
 # user's next start. Running the CLI creates a randomly named directory under
 # /root/.codex/tmp, which would differ in every build, so it is removed.
 # upstream: npm @openai/codex
-ARG CODEX_VERSION=0.170.0
+ARG CODEX_VERSION=0.171.0
 ENV NPM_CONFIG_PREFIX=/opt/codex-npm
 RUN npm install --global --no-audit --no-fund "@openai/codex@${CODEX_VERSION}" \
     && npm cache clean --force \
