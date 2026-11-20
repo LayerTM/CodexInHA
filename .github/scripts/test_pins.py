@@ -314,6 +314,19 @@ def failing_relock(directory: pathlib.Path, root: pathlib.Path) -> None:
 code, out = run(repo(files=LOCKED), answers(**{MCP: b'{"version": "0.0.82"}'}), "bump", relock=failing_relock)
 check("a lockfile that cannot be refreshed fails the bump", (code, "could not refresh" in out), (2, True))
 
+print("the Codex CLI package.json")
+CLI = '{\n  "name": "codex-cli",\n  "version": "1.0.0",\n  "private": true,\n  "dependencies": {\n    "@openai/codex": "0.171.0"\n  }\n}\n'
+CLI_FILES = {"addon/codex-cli/package.json": CLI, "addon/codex-cli/package-lock.json": "{}\n"}
+CODEX = "https://registry.npmjs.org/@openai/codex/latest"
+relocked.clear()
+root = repo(files=CLI_FILES)
+code, out = run(root, answers(**{CODEX: b'{"version": "0.172.0"}'}), "bump")
+check("a CLI bump moves the manifest's version and re-locks that directory, so the lock's integrity moves with it",
+      (code, json.loads((root / "addon/codex-cli/package.json").read_text())["dependencies"]["@openai/codex"], relocked),
+      (0, "0.172.0", [pathlib.Path("addon/codex-cli")]))
+code, out = run(repo(files=CLI_FILES), answers(**{CODEX: b'{"version": "0.172.0"}'}), "check")
+check("check reports the CLI behind its upstream", (code, "0.171.0 -> 0.172.0" in out), (1, True))
+
 print("core.lock.json")
 CORE = "https://api.github.com/repos/Example/core/releases/latest"
 
@@ -549,10 +562,75 @@ print("this repository")
 found = pins.discover(REPO)
 check("every pin in the add-on declares an upstream (no unmarked pin)", len(found) > 0, True)
 check("the bundled command-line tools are pinned by their package.json",
-      sorted(p.args[0] for p in found if p.file.name == "package.json"), ["@playwright/mcp"])
-check("the Codex CLI and the base image tags are pins",
-      (sum(1 for p in found if p.kind == "npm" and p.args == ["@openai/codex"]),
-       sum(1 for p in found if p.file.name == "build.yaml")), (1, 2))
+      sorted(p.args[0] for p in found if p.file.parent.name == "cli-tools"), ["@playwright/mcp"])
+check("the Codex CLI is pinned by the package.json its lock sits beside, not by a Dockerfile line",
+      ([(p.file.relative_to(REPO).as_posix(), p.value) for p in found if p.kind == "npm" and p.args == ["@openai/codex"]],
+       [p.name for p in found if p.name == "CODEX_VERSION"]),
+      ([("codex/codex-cli/package.json", json.loads((REPO / "codex/codex-cli/package.json").read_text())["dependencies"]["@openai/codex"])], []))
+check("the base image tags are pins", sum(1 for p in found if p.file.name == "build.yaml"), 2)
+
+print("the Codex CLI lock")
+CLI_DIR = REPO / "codex" / "codex-cli"
+cli_lock = json.loads((CLI_DIR / "package-lock.json").read_text())
+cli_version = json.loads((CLI_DIR / "package.json").read_text())["dependencies"]["@openai/codex"]
+cli_pkgs = {k: v for k, v in cli_lock["packages"].items() if k}
+check("the lock holds the CLI at the manifest's version",
+      cli_lock["packages"]["node_modules/@openai/codex"]["version"], cli_version)
+check("every locked package carries a sha512 integrity",
+      sorted(k for k, v in cli_pkgs.items() if not str(v.get("integrity", "")).startswith("sha512-")), [])
+check("both linux platform builds are locked at the CLI's version, from the registry",
+      sorted((k, v["version"].split("-")[0], v["resolved"].startswith("https://registry.npmjs.org/"))
+             for k, v in cli_pkgs.items() if k.endswith(("codex-linux-x64", "codex-linux-arm64"))),
+      [("node_modules/@openai/codex-linux-arm64", cli_version, True), ("node_modules/@openai/codex-linux-x64", cli_version, True)])
+dockerfile_text = (REPO / "codex" / "Dockerfile").read_text()
+check("the image installs the CLI with npm ci from that lock",
+      ("COPY codex-cli " in dockerfile_text, "npm ci --omit=dev --ignore-scripts" in dockerfile_text), (True, True))
+check("the build asserts the platform build is present (npm skips an optional package that fails its integrity check)",
+      'test -d "node_modules/@openai/codex-linux-${arch}"' in dockerfile_text, True)
+
+# A registry (or a lock) that names another tarball for a locked package must stop the
+# install. The fixture is a local tarball so the test needs no network; the lock holds its
+# real integrity first, then a changed one.
+npm_bin = __import__("shutil").which("npm")
+check("npm is on the PATH (the integrity test needs it)", npm_bin is not None, True)
+with tempfile.TemporaryDirectory() as tmp:
+    base = pathlib.Path(tmp)
+    (base / "leaf").mkdir()
+    (base / "leaf" / "package.json").write_text('{"name": "leaf", "version": "1.0.0"}\n')
+    (base / "leaf" / "index.js").write_text("1\n")
+    subprocess.run([npm_bin, "pack", "--silent"], cwd=base / "leaf", check=True, capture_output=True)
+    proj = base / "proj"
+    proj.mkdir()
+    (base / "leaf" / "leaf-1.0.0.tgz").rename(proj / "leaf-1.0.0.tgz")
+    (proj / "package.json").write_text(
+        '{"name": "p", "version": "1.0.0", "private": true, "dependencies": {"leaf": "file:leaf-1.0.0.tgz"}}\n')
+    subprocess.run([npm_bin, "install", "--package-lock-only", "--ignore-scripts", "--no-audit", "--no-fund"],
+                   cwd=proj, check=True, capture_output=True)
+    lock_path = proj / "package-lock.json"
+    good = lock_path.read_text()
+    ci = [npm_bin, "ci", "--omit=dev", "--ignore-scripts", "--no-audit", "--no-fund"]
+    first = subprocess.run(ci, cwd=proj, capture_output=True, text=True)
+    check("npm ci installs a package whose integrity matches the lock", (first.returncode, (proj / "node_modules/leaf").is_dir()), (0, True))
+    integrity = json.loads(good)["packages"]["node_modules/leaf"]["integrity"]
+    tampered = integrity[:7] + ("A" if integrity[7] != "A" else "B") + integrity[8:]
+    lock_path.write_text(good.replace(integrity, tampered))
+    __import__("shutil").rmtree(proj / "node_modules")
+    refused = subprocess.run(ci, cwd=proj, capture_output=True, text=True)
+    check("npm ci refuses a package whose integrity differs from the lock, and installs nothing",
+          (refused.returncode != 0, "EINTEGRITY" in refused.stderr, (proj / "node_modules/leaf").exists()), (True, True, False))
+    # The same mismatch on an OPTIONAL dependency is not an error for npm: it is skipped. That is
+    # why the Dockerfile asserts the platform build is present; this pins the behaviour it relies on.
+    manifest = json.loads((proj / "package.json").read_text())
+    manifest["optionalDependencies"] = manifest.pop("dependencies")
+    (proj / "package.json").write_text(json.dumps(manifest))
+    locked = json.loads(good)
+    locked["packages"][""]["optionalDependencies"] = locked["packages"][""].pop("dependencies")
+    locked["packages"]["node_modules/leaf"]["optional"] = True
+    locked["packages"]["node_modules/leaf"]["integrity"] = tampered
+    lock_path.write_text(json.dumps(locked))
+    skipped = subprocess.run(ci, cwd=proj, capture_output=True, text=True)
+    check("npm ci skips an optional package with the wrong integrity instead of failing (so the image checks it is there)",
+          (skipped.returncode, (proj / "node_modules/leaf").exists()), (0, False))
 check("the Debian snapshot the image installs from is a pin",
       [p.kind for p in found if p.name == "DEBIAN_SNAPSHOT"], ["debian-snapshot"])
 check("the base image is pinned by digest",
