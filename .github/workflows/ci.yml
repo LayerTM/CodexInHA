@@ -18,6 +18,12 @@ on:
 permissions:
   contents: read
 
+# bash -eo pipefail: GitHub's default shell (bash -e) lets a pipeline succeed
+# when its left side fails, e.g. `producer | tee -a "$GITHUB_OUTPUT"`.
+defaults:
+  run:
+    shell: bash
+
 jobs:
   # The tests run against the tree the image ships: this repository's files
   # merged with the pinned ha-agent-core release, by the same script the image
