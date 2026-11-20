@@ -1,0 +1,10 @@
+{
+  "name": "codex-cli",
+  "version": "1.0.0",
+  "private": true,
+  "description": "The Codex CLI the add-on image ships; installed from package-lock.json, which names every package by integrity",
+  "license": "MIT",
+  "dependencies": {
+    "@openai/codex": "0.171.0"
+  }
+}

@@ -121,19 +121,33 @@ ARG NODE_DISABLE_COMPILE_CACHE=1
 # first start), so a sign-in, the sessions and an update from the console
 # survive a restart and an add-on update.
 #
-# The version is pinned here rather than resolved at build time, so two builds
-# of the same commit ship the same CLI. The install is asserted afterwards: an
-# upstream change of the package's shape fails the build here instead of at a
-# user's next start. Running the CLI creates a randomly named directory under
-# /root/.codex/tmp, which would differ in every build, so it is removed.
-# upstream: npm @openai/codex
-ARG CODEX_VERSION=0.171.0
-ENV NPM_CONFIG_PREFIX=/opt/codex-npm
-RUN npm install --global --no-audit --no-fund "@openai/codex@${CODEX_VERSION}" \
+# The version lives in codex-cli/package.json and every package it installs
+# (the CLI and the linux platform build it runs) is named by integrity in the
+# lock beside it, so a registry that serves another tarball under the same
+# version fails the build instead of shipping (npm skips an optional package that
+# fails its integrity check without failing, so the platform build is asserted
+# present). Scripts stay off: the package has
+# none to run. The packages are placed where `npm install --global` would put
+# them, because the console updates this copy with that command. The install is
+# asserted afterwards: an upstream change of the package's shape fails the build
+# here instead of at a user's next start. Running the CLI creates a randomly
+# named directory under /root/.codex/tmp, which would differ in every build, so
+# it is removed.
+COPY codex-cli /tmp/codex-cli
+RUN cd /tmp/codex-cli \
+    && wanted="$(jq -r '.dependencies["@openai/codex"]' package.json)" \
+    && npm ci --omit=dev --ignore-scripts --no-audit --no-fund \
+    && mkdir -p /opt/codex-npm/bin /opt/codex-npm/lib/node_modules \
+    && arch="$(case "$(uname -m)" in x86_64) echo x64;; aarch64) echo arm64;; *) echo "unsupported $(uname -m)" >&2; exit 1;; esac)" \
+    && { test -d "node_modules/@openai/codex-linux-${arch}" \
+         || { echo "The linux-${arch} build of the CLI was not installed (npm skips an optional package that fails its integrity check)"; exit 1; }; } \
+    && mv node_modules/@openai /opt/codex-npm/lib/node_modules/@openai \
+    && ln -s ../lib/node_modules/@openai/codex/bin/codex.js /opt/codex-npm/bin/codex \
+    && cd / && rm -rf /tmp/codex-cli \
     && npm cache clean --force \
     && installed="$(/opt/codex-npm/bin/codex --version | awk '/^codex-cli /{print $2}')" \
-    && { [ "${installed}" = "${CODEX_VERSION}" ] \
-         || { echo "Pinned ${CODEX_VERSION} but the CLI reports '${installed}'"; exit 1; }; } \
+    && { [ "${installed}" = "${wanted}" ] \
+         || { echo "Locked ${wanted} but the CLI reports '${installed}'"; exit 1; }; } \
     && rm -rf /root/.codex
 ENV NPM_CONFIG_PREFIX=/data/npm
 ENV PATH="/data/npm/bin:${PATH}"

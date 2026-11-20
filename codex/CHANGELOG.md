@@ -8,6 +8,8 @@
   the multi-agent feature was switched off, and a child agent started without the parent's history did start (with the
   parent's read-only sandbox and tool set); the run now turns child agents off explicitly. The console keeps them.
 - Codex CLI 0.171.0.
+- The image installs the Codex CLI from a lockfile that names the CLI and its platform builds by integrity, so a registry
+  serving a different tarball under the same version fails the build instead of shipping.
 
 ## 0.4.0
 
