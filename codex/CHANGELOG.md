@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.4.1
 
 - ha-agent-core 0.15.1 ([release notes](https://github.com/LayerTM/ha-agent-core/releases/tag/v0.15.1)): the engine session check no longer
   fails when the engine starts slowly (an emulated or loaded host).
@@ -12,6 +12,10 @@
   serving a different tarball under the same version fails the build instead of shipping.
 - hass-mcp 0.6.2 ([release notes](https://github.com/voska/hass-mcp/releases/tag/v0.6.2)): entity ids, domains and
   services are validated before a request is made.
+- The image is built reproducibly: its base image, the Debian packages (from a fixed snapshot), the `ha` and `yq`
+  binaries and every Python package are fixed by digest or hash, so two builds of one release give the same image.
+- The build and release workflows install their own tools from hash-locked requirements and stop on any failed step
+  of a pipeline, and a release is offered only with the image that was tried before it.
 
 ## 0.4.0
 
