@@ -2,6 +2,8 @@
 
 ## 0.4.1
 
+- Chromium's shared-memory decision now reads the first `/dev/shm` mount line, so it also works where the container
+  runtime stacks two mounts there (the packaged test errored out and never set `--disable-dev-shm-usage`).
 - ha-agent-core 0.15.1 ([release notes](https://github.com/LayerTM/ha-agent-core/releases/tag/v0.15.1)): the engine session check no longer
   fails when the engine starts slowly (an emulated or loaded host).
 - A Prompt API run is no longer offered child agent tools. The model's own settings could make the CLI offer them although

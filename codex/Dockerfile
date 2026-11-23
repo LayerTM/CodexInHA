@@ -166,6 +166,15 @@ RUN --mount=type=bind,source=build-tools/apt-install.sh,target=/tmp/apt-install.
         fonts-noto-color-emoji \
         fonts-liberation \
         imagemagick
+# Debian's chromium.d/dev-shm decides from `findmnt -T /dev/shm` whether Chromium
+# must keep shared memory out of /dev/shm. Where the container runtime stacks two
+# mounts on /dev/shm, findmnt prints two lines, the numeric test errors out and the
+# flag is never set. Read the first line only; a build whose packaged line no
+# longer matches fails here instead of shipping an unfixed snippet.
+RUN grep -qF -e '-T /dev/shm)' /etc/chromium.d/dev-shm \
+    && sed -i 's|-T /dev/shm)|-T /dev/shm \| head -n 1)|' /etc/chromium.d/dev-shm \
+    && { grep -qF -e '-T /dev/shm | head -n 1)' /etc/chromium.d/dev-shm \
+         || { echo "The dev-shm decision in /etc/chromium.d was not rewritten"; exit 1; }; }
 ENV CHROME_BIN=/usr/bin/chromium
 ENV PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1
 
