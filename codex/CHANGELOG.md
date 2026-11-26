@@ -8,7 +8,17 @@
   nothing is proposed.
 - On Home Assistant 2026.12 a device name that only matches part of other names is reported as not found, as on
   earlier versions, instead of as an ambiguous device with no candidates to choose from.
-- ha-agent-core 0.15.2 ([release notes](https://github.com/LayerTM/ha-agent-core/releases/tag/v0.15.2)), which also
+- When a device name is ambiguous, or matches a device that cannot be pinned to one entity, the answer lists every
+  exposed device that answers to it, including those that carry the name only as an alias. A device matched by an
+  alias is listed for you to choose, never proposed by itself.
+- A proactive alert that is already active clears only once the value is back past its threshold by that rule's
+  margin, so a reading that hovers at the threshold is one alert. New options: `alert_co2_margin` (default 100 ppm:
+  with the threshold at 1400, an active CO2 alert clears at 1300), and `alert_battery_margin`, `alert_temp_margin`
+  and `alert_humidity_margin` (default 0); 0 means no margin.
+- An alert check that cannot read the states no longer clears the active alerts, so they are not notified again at
+  the next check.
+- The image takes its Debian packages from the 2026-11-26 snapshot.
+- ha-agent-core 0.15.3 ([release notes](https://github.com/LayerTM/ha-agent-core/releases/tag/v0.15.3)), which also
   updates several packages of the add-on's server.
 
 ## 0.4.1
