@@ -202,6 +202,16 @@ reconciled on every start.
 | `api_token` | Optional fixed bearer token for the Prompt API. Leave empty — the app generates one and hands it to the integration via discovery. |
 | `prompt_ha_token` | Optional HA token used only by Prompt-API sessions to read state through the MCP Server integration. Best practice: a dedicated non-admin user's token. Falls back to `ha_token`. |
 
+**Do not switch the console to the `workspace-write` sandbox.** It does not work
+in the app container: bubblewrap cannot create the isolation it needs, so every
+shell command Codex runs fails with a `bwrap` error such as
+`bwrap: Failed to make / slave: Permission denied`. You get there through
+`launch_command`, or by running `codex` yourself in a shell tab, with that mode
+set on the command line or in `config.toml`. Do not add `--sandbox` (or `-s`)
+to `extra_args`: with `bypass_permissions` off, the default invocation already
+sets the sandbox, and Codex refuses to start when the flag is repeated. The
+app's default invocation is the mode that works.
+
 This app reports no cost for any run (the CLI does not report a dollar
 figure), so there is no daily chat budget option and `/api/status` publishes
 no `budget`.
