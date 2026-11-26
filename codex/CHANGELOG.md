@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.4.2
 
 - On Home Assistant 2026.12 a proposal names only a device that Home Assistant exposes to its assistant. A device
   that was not exposed, and whose id is part of an exposed device's id, could be taken for an exposed one and
