@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.4.1
 
 - Chromium's shared-memory decision now reads the first `/dev/shm` mount line, so it also works where the container
   runtime stacks two mounts there (the packaged test errored out and never set `--disable-dev-shm-usage`).
@@ -14,6 +14,10 @@
   serving a different tarball under the same version fails the build instead of shipping.
 - hass-mcp 0.6.2 ([release notes](https://github.com/voska/hass-mcp/releases/tag/v0.6.2)): entity ids, domains and
   services are validated before a request is made.
+- The image is built reproducibly: its base image, the Debian packages (from a fixed snapshot), the `ha` and `yq`
+  binaries and every Python package are fixed by digest or hash, so two builds of one release give the same image.
+- The build and release workflows install their own tools from hash-locked requirements and stop on any failed step
+  of a pipeline, and a release is offered only with the image that was tried before it.
 
 ## 0.4.0
 
