@@ -17,7 +17,8 @@
   and `alert_humidity_margin` (default 0); 0 means no margin.
 - An alert check that cannot read the states no longer clears the active alerts, so they are not notified again at
   the next check.
-- The image takes its Debian packages from the 2026-11-26 snapshot.
+- The image is built on hassio-addons debian-base 9.6.0 (Debian 13.8, bashio 0.20.0) and takes its Debian packages
+  from the 2026-11-26 snapshot.
 - ha-agent-core 0.15.3 ([release notes](https://github.com/LayerTM/ha-agent-core/releases/tag/v0.15.3)), which also
   updates several packages of the add-on's server.
 
