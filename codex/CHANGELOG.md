@@ -1,5 +1,16 @@
 # Changelog
 
+## Unreleased
+
+- On Home Assistant 2026.12 a proposal names only a device that Home Assistant exposes to its assistant. A device
+  that was not exposed, and whose id is part of an exposed device's id, could be taken for an exposed one and
+  proposed. The add-on now reads Home Assistant's own list of exposed entities; when that list cannot be read,
+  nothing is proposed.
+- On Home Assistant 2026.12 a device name that only matches part of other names is reported as not found, as on
+  earlier versions, instead of as an ambiguous device with no candidates to choose from.
+- ha-agent-core 0.15.2 ([release notes](https://github.com/LayerTM/ha-agent-core/releases/tag/v0.15.2)), which also
+  updates several packages of the add-on's server.
+
 ## 0.4.1
 
 - Chromium's shared-memory decision now reads the first `/dev/shm` mount line, so it also works where the container
