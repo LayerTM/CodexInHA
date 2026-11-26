@@ -47,6 +47,7 @@ map:
 options:
   api_key: ""
   ha_token: ""
+  core_certificate_sha256: ""
   bypass_permissions: false
   protect_secrets: true
   auto_update: true
@@ -98,6 +99,7 @@ options:
 schema:
   api_key: "password"
   ha_token: "password"
+  core_certificate_sha256: "str?"
   bypass_permissions: bool
   protect_secrets: bool
   auto_update: bool
