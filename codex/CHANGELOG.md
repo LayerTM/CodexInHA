@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.4.3
 
 - When Home Assistant serves HTTPS, the app's Prompt API checks the certificate on every connection to it. It is
   accepted when its chain leads to an authority Node trusts, or when it is a certificate kept under `/ssl` or named by
