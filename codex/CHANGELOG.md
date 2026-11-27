@@ -1,5 +1,19 @@
 # Changelog
 
+## Unreleased
+
+- The morning briefing could say all was well while an alert condition held, such as a water leak. It is now given
+  every alert the proactive alerts would raise on the same reading with the same `alert_*` options, critical ones
+  first, whether or not `proactive_alerts` is on, and Codex is asked to state them before anything else. Low batteries
+  in the briefing follow `alert_battery_below` (default 15) instead of a fixed 20; at 0 the briefing does not mention
+  batteries.
+- When Home Assistant's states cannot be read, no briefing is sent and the log says why, instead of a briefing written
+  from empty data.
+- A briefing longer than 1500 characters is now cut at its end, not its beginning.
+- `ha-shot` no longer guesses the Home Assistant address: it stops with a message when `HA_URL` is not set. The app
+  sets `HA_URL` at start, so screenshots taken inside it work as before.
+- ha-agent-core 0.16.1 ([release notes](https://github.com/LayerTM/ha-agent-core/releases/tag/v0.16.1)).
+
 ## 0.4.3
 
 - When Home Assistant serves HTTPS, the app's Prompt API checks the certificate on every connection to it. It is

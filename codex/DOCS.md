@@ -249,6 +249,11 @@ It watches for:
 - **Humidity out of band** (`alert_humidity_enabled`, off by default) — a `humidity` sensor below `alert_humidity_low` (25%) or above `alert_humidity_high` (70%), so you catch a damp bathroom/cellar or over-dry room. Non-critical (held back during quiet hours).
 - **Offline / network** (`alert_offline`, on) — any entity you list in `alert_offline_entities` that reports `unavailable`/`unknown`, or (for a `device_tracker`) `not_home`. **Critical**: always sent, even during quiet hours. The list starts **empty**, so this check watches nothing until you name an entity — add your internet gateway's `device_tracker` to be told when the connection drops.
 
+**Morning briefing.** When `daily_digest_time` is set, the briefing is also given every alert these rules would raise
+on the same reading with the same `alert_*` options, critical ones first, whether or not `proactive_alerts` is on, and
+Codex is asked to state them before anything else. If the states cannot be read, no briefing is sent and the log says
+why.
+
 **Clear margins.** An alert is raised as soon as a value passes its threshold.
 Once active, a CO2, battery, temperature or humidity alert clears only when the
 value is back past that threshold by the rule's margin, so a reading that hovers
