@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.4.4
 
 - The morning briefing could say all was well while an alert condition held, such as a water leak. It is now given
   every alert the proactive alerts would raise on the same reading with the same `alert_*` options, critical ones
